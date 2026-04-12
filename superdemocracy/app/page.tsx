@@ -58,9 +58,6 @@ export default function Home() {
   const [orgSortOrder, setOrgSortOrder] = useState<"newest" | "oldest" | "popular">("newest")
   const [showOrgSort, setShowOrgSort] = useState(false)
   const [updatingOrgs, setUpdatingOrgs] = useState<Set<string>>(new Set());
-  const [showApplicationModal, setShowApplicationModal] = useState(false);
-  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
-  const [applicationText, setApplicationText] = useState("");
 
   const getApplicationKey = (user: string, org: string) => {
     return `application:${user.toLowerCase()}:${org.toLowerCase()}`
@@ -117,45 +114,35 @@ export default function Home() {
     })
   }
 
-  const handleJoin = async (
-    orgAddressInput: string | `0x${string}`,
-    membershipMode: number
-  ) => {
-    const orgAddress = safeAddress(orgAddressInput);
-    if (!orgAddress) {
-      alert("Invalid organization address");
-      return;
-    }
+const handleJoin = async (
+  orgAddressInput: string | `0x${string}`,
+  membershipMode: number
+) => {
+  const orgAddress = safeAddress(orgAddressInput);
+  if (!orgAddress) {
+    alert("Invalid organization address");
+    return;
+  }
 
-    console.log("Join clicked for normalized organization:", orgAddress);
-
-    if (membershipMode === 1) {
-      console.log("Opening application flow (approval required)");
-      setSelectedOrg(orgAddress);
-      setShowApplicationModal(true);
-      return;
-    } 
-
-    try {
-      await writeJoin({
-        address: orgAddress,
-        abi: [
-          {
-            name: "join",
-            type: "function",
-            inputs: [],
-            outputs: [],
-            stateMutability: "nonpayable",
-          },
-        ],
-        functionName: "join",
-      });
-      console.log("Join transaction sent successfully");
-    } catch (error: any) {
-      console.error("Join failed:", error);
-      alert("Join failed: " + (error?.message || "Unknown error"));
-    }
-  };
+  try {
+    await writeJoin({
+      address: orgAddress,
+      abi: [
+        {
+          name: "join",
+          type: "function",
+          inputs: [],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+      ],
+      functionName: "join",
+    });
+  } catch (error: any) {
+    console.error("Join failed:", error);
+    alert("Join failed: " + (error?.message || "Unknown error"));
+  }
+};
 
   // Fetch organizations from GroupRegistry logs
   useEffect(() => {
@@ -754,24 +741,23 @@ export default function Home() {
             );
           })}
 
-          {orgTab === 'yours' && (
-            filteredOrgs
-            .filter((org) => {
-              const safeOrgAddr = safeAddress(org.address);
-              if (!safeOrgAddr) return false;
+          {orgTab === 'yours' && (filteredOrgs
+              .filter((org) => {
+                const safeOrgAddr = safeAddress(org.address);
+                if (!safeOrgAddr) return false;
 
-              const isCreator = org.creator === address;
-              const isMember = Boolean(isMemberMap.memberMap[safeOrgAddr] ?? false);
+                const isCreator = org.creator === address;
+                const isMember = Boolean(isMemberMap.memberMap[safeOrgAddr] ?? false);
 
-              return isCreator || isMember;
-            })
-            .map((org, index) => {
-              const isCreator = org.creator === address;
-              const safeOrgAddr = safeAddress(org.address);
-              const isMemberFromContract = safeOrgAddr
-                ? Boolean(isMemberMap.memberMap[safeOrgAddr] ?? false)
-                : false;
-              const isMember = isCreator || isMemberFromContract;
+                return isCreator || isMember;
+              })
+              .map((org, index) => {
+                const isCreator = org.creator === address;
+                const safeOrgAddr = safeAddress(org.address);
+                const isMemberFromContract = safeOrgAddr
+                  ? Boolean(isMemberMap.memberMap[safeOrgAddr] ?? false)
+                  : false;
+                const isMember = isCreator || isMemberFromContract;
 
               return (
                 <div key={index} className="mb-6 p-6 border border-white rounded bg-black text-white flex justify-between items-start">
@@ -794,75 +780,11 @@ export default function Home() {
                   </div>
                 </div>
               );
-            })}
-
-          {showApplicationModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-              <div className="bg-black border border-white p-6 rounded w-[400px]">
-                <h2 className="text-xl mb-4">Apply to Join</h2>
-
-                <textarea
-                  value={applicationText}
-                  onChange={(e) => setApplicationText(e.target.value)}
-                  placeholder="Enter any info required by the organization..."
-                  className="w-full p-2 mb-4 bg-black border border-white text-white"
-                />
-
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowApplicationModal(false)}
-                    className="px-4 py-2 border border-white"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    onClick={async () => {
-                      if (!selectedOrg || !address) return;
-
-                      try {
-                        const key = getApplicationKey(address, selectedOrg);
-
-                        localStorage.setItem(
-                          key,
-                          JSON.stringify({
-                            applicationText,
-                            timestamp: Date.now(),
-                          })
-                        );
-
-                        await writeJoin({
-                          address: selectedOrg,
-                          abi: [
-                            {
-                              name: "join",
-                              type: "function",
-                              inputs: [],
-                              outputs: [],
-                              stateMutability: "nonpayable",
-                            },
-                          ],
-                          functionName: "join",
-                        });
-
-                        setShowApplicationModal(false);
-                        setApplicationText("");
-                        setSelectedOrg(null);
-
-                      } catch (err) {
-                        console.error("Application submit failed:", err);
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600"
-                  >
-                    Submit
-                  </button>
-                </div>
-              </div>
-            </div>
+            })
           )}
         </>
-      )}
+       )}
+      </div>
     </div>
-  );
+  )
 }
