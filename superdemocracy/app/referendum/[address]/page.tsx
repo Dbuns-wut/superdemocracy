@@ -14,6 +14,7 @@ import {
 } from "wagmi"
 
 import { abi as referendumAbi } from "@/abis/Referendum.json"
+import type { Abi } from "viem"
 import { safeAddress } from "@/lib/address"
 import { waitForTransactionReceipt } from "wagmi/actions"
 import { config } from "@/lib/web3"
@@ -22,7 +23,10 @@ import VoteBar from "@/components/VoteBar"
 export default function ReferendumPage() {
   const params = useParams()
 
-  const contractAddress = safeAddress(params?.address)
+  const addressParam = Array.isArray(params?.address)
+    ? params?.address[0]
+    : params?.address
+  const contractAddress = safeAddress(addressParam)
 
   const { address } = useAccount()
 
@@ -72,14 +76,16 @@ export default function ReferendumPage() {
     blockNumber,
   })
 
+  const statusValue = status as number | undefined
+
   let readableStatus = "Loading..."
 
-  if (status === 0) readableStatus = "Not Started"
-  if (status === 1) readableStatus = "Active"
-  if (status === 2) readableStatus = "Ended"
+  if (statusValue === 0) readableStatus = "Not Started"
+  if (statusValue === 1) readableStatus = "Active"
+  if (statusValue === 2) readableStatus = "Ended"
 
   const { connect, connectors } = useConnect()
-  const { writeContract } = useWriteContract()
+  const { writeContract, writeContractAsync } = useWriteContract()
 
   const handleVote = async (i: number) => {
     if (!contractAddress || !options) return
@@ -91,7 +97,7 @@ export default function ReferendumPage() {
         index === i ? 0 : 1
       )
 
-      const hash = await writeContract({
+      const hash = await writeContractAsync({
         address: contractAddress as `0x${string}`,
         abi: referendumAbi,
         functionName: "vote",
@@ -105,9 +111,12 @@ export default function ReferendumPage() {
     }
   }
 
-  const title = details?.[0]
-  const description = details?.[1]
-  const options = details?.[2]
+  const detailsValue = details as
+    | readonly [string, string, readonly string[], bigint, bigint]
+    | undefined
+  const title = detailsValue?.[0]
+  const description = detailsValue?.[1]
+  const options = detailsValue?.[2]
 
   const currentVote =
    ballot !== undefined && options
@@ -117,7 +126,7 @@ export default function ReferendumPage() {
   const { data: optionVoteReads } = useReadContracts({
     contracts: options?.map((_: string, i: number) => ({
       address: contractAddress,
-      abi: referendumAbi,
+      abi: referendumAbi as Abi,
       functionName: "optionVotes",
       args: [i],
     })) ?? [],
