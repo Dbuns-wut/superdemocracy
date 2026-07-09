@@ -45,7 +45,7 @@ export default function CreateOrganization() {
     console.log("Sending transaction with mode:", modeValue)
 
     try {
-      const tx = await writeContract({
+      await writeContract({
         address: registryAddress,
         abi: registryAbi,
         functionName: "createGroup",
@@ -59,9 +59,9 @@ export default function CreateOrganization() {
 
       console.log("=== CREATED GROUP TX HASH ===", hash);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Create failed:", error)
-      alert("Create failed: " + (error?.message || "Unknown error"))
+      alert("Create failed: " + (error instanceof Error ? error.message : "Unknown error"))
     }
   }
 
@@ -119,7 +119,7 @@ export default function CreateOrganization() {
                 <option value="Automatic">Automatic — New members automatically vetted based on ID database cross-referencing</option>
               </select>
               <p className="text-xs text-gray-500 mt-3">
-                "Automatic" mode is a placeholder for now. It will use your Identity system once connected.
+                &quot;Automatic&quot; mode is a placeholder for now. It will use your Identity system once connected.
               </p>
             </div>
 

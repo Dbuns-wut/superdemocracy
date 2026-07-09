@@ -18,6 +18,21 @@ const organizationAddress = organizationAddressRaw
   : undefined
 const registryAddress = process.env.NEXT_PUBLIC_GROUP_REGISTRY as `0x${string}`
 
+type Org = {
+  address: `0x${string}`
+  creator?: `0x${string}`
+  title: string
+  description: string
+  memberCount: number
+}
+
+type PetitionEvent = {
+  petitionId: number
+  title: string
+  signatures: number
+  creator?: `0x${string}`
+}
+
 export default function Home() {
   const { data: total } = useTotalPetitions()
 
@@ -38,7 +53,7 @@ export default function Home() {
   const [tab, setTab] = useState('all')
   const { address } = useAccount()
   const publicClient = usePublicClient()
-  const [events, setEvents] = useState<any[]>([])
+  const [events] = useState<PetitionEvent[]>([])
   const [search, setSearch] = useState("")
   const [signedPetitions, setSignedPetitions] = useState<number[]>([])
   const [sortOrder, setSortOrder] = useState("newest")
@@ -50,7 +65,7 @@ export default function Home() {
     }
     return "petitions";
   });
-  const [orgs, setOrgs] = useState<`0x${string}`[]>([]) 
+  const [orgs, setOrgs] = useState<Org[]>([]) 
   const [orgTab, setOrgTab] = useState('all')
   const [orgTitle, setOrgTitle] = useState("")
   const [orgDescription, setOrgDescription] = useState("")
@@ -135,12 +150,12 @@ const handleJoin = async (
           outputs: [],
           stateMutability: "nonpayable",
         },
-      ],
+      ] as const,
       functionName: "join",
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Join failed:", error);
-    alert("Join failed: " + (error?.message || "Unknown error"));
+    alert("Join failed: " + (error instanceof Error ? error.message : "Unknown error"));
   }
 };
 
@@ -156,7 +171,7 @@ const handleJoin = async (
           toBlock: "latest",
         })
 
-        const foundOrgs: any[] = []
+        const foundOrgs: Org[] = []
 
         for (const log of logs) {
           try {
@@ -164,9 +179,17 @@ const handleJoin = async (
               abi: registryAbi,
               data: log.data,
               topics: log.topics,
-            })
+            }) as unknown as {
+              eventName: string
+              args: {
+                group: string
+                creator?: `0x${string}`
+                title?: string
+                description?: string
+              }
+            }
 
-            if (decoded.eventName === "GroupCreated") {
+            if (decoded.eventName === "GroupCreated" && decoded.args) {
               const rawGroupAddr = decoded.args.group as string
               const normalizedAddr = safeAddress(rawGroupAddr)
 
@@ -268,7 +291,7 @@ const handleJoin = async (
             outputs: [{ type: "bool" }],
             stateMutability: "view",
           },
-        ],
+        ] as const,
         functionName: "isMember",
         args: [address],
       };
@@ -291,7 +314,7 @@ const handleJoin = async (
             outputs: [{ type: "uint256" }],
             stateMutability: "view",
           },
-        ],
+        ] as const,
         functionName: "totalMembers",
       };
     }).filter((contract): contract is NonNullable<typeof contract> => contract !== null),
@@ -313,7 +336,7 @@ const handleJoin = async (
             outputs: [{ type: "bool" }],
             stateMutability: "view",
           },
-        ],
+        ] as const,
         functionName: "pendingRequests",
         args: [address],
       };
@@ -336,7 +359,7 @@ const handleJoin = async (
             outputs: [{ type: "uint8" }],
             stateMutability: "view",
           },
-        ],
+        ] as const,
         functionName: "membershipMode",
       };
     }).filter((contract): contract is NonNullable<typeof contract> => contract !== null),
@@ -394,8 +417,8 @@ const handleJoin = async (
         const safeAddr = safeAddress(org.address);
         if (!safeAddr) return;
 
-        const modeResult = membershipModeData[index] as bigint | undefined;
-        modeMap[safeAddr] = Number(modeResult ?? 0n);
+        const modeResult = membershipModeData[index] as number | undefined;
+        modeMap[safeAddr] = Number(modeResult ?? 0);
       });
     }
 

@@ -11,20 +11,21 @@ const organizationAddress =
 export function PetitionCard({ id }: { id: bigint }) {
   const { isMember, isAdmin } = useRoles()
   const { data, refetch } = usePetition(id)
-  const { data: referendumAddress } = useReferendumAddress(id)
+  const { data: referendumAddressRaw } = useReferendumAddress(id)
+  const referendumAddress = referendumAddressRaw as `0x${string}` | undefined
   const { writeContractAsync } = useWriteContract()
 
   if (!data) return <div>Loading petition...</div>
 
-  const {
-    0: title,
-    1: description,
-    2: threshold,
-    3: verifiedCount,
-    4: approved,
-    5: rejected,
-    6: referendumLaunched,
-  } = data as any
+  const [
+    title,
+    description,
+    threshold,
+    verifiedCount,
+    approved,
+    rejected,
+    referendumLaunched,
+  ] = data as readonly [string, string, bigint, bigint, boolean, boolean, boolean]
 
   async function handleSign() {
     await writeContractAsync({

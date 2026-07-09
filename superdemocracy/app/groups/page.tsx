@@ -9,6 +9,11 @@ import { abi as registryAbi } from "@/abis/GroupRegistry.json"
 
 const registryAddress = process.env.NEXT_PUBLIC_GROUP_REGISTRY as `0x${string}`
 
+type Group = {
+  group: `0x${string}`
+  creator: `0x${string}`
+}
+
 export default function GroupsPage() {
 
   console.log("GROUPS PAGE RENDERED")
@@ -17,7 +22,7 @@ export default function GroupsPage() {
   const { address } = useAccount()
   const publicClient = usePublicClient()
 
-  const [groups, setGroups] = useState<any[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [search, setSearch] = useState("")
   const [tab, setTab] = useState("all")
   const [sortOrder, setSortOrder] = useState("newest")
@@ -44,7 +49,7 @@ export default function GroupsPage() {
         toBlock: "latest",
       })
 
-      const found: any[] = []
+      const found: Group[] = []
 
       logs.forEach((log) => {
         try {
@@ -52,9 +57,12 @@ export default function GroupsPage() {
             abi: registryAbi,
             data: log.data,
             topics: log.topics,
-          })
+          }) as unknown as {
+            eventName: string
+            args: { group: `0x${string}`; creator: `0x${string}` }
+          }
 
-          if (decodedLog.eventName === "GroupCreated") {
+          if (decodedLog.eventName === "GroupCreated" && decodedLog.args) {
             found.push({
               group: decodedLog.args.group,
               creator: decodedLog.args.creator,
@@ -72,7 +80,7 @@ export default function GroupsPage() {
   const filteredGroups = groups
     .filter(g => g.group.toLowerCase().includes(search.toLowerCase()))
     .filter(g => tab === "all" || g.creator === address)
-    .sort((a, b) => sortOrder === "newest"
+    .sort(() => sortOrder === "newest"
       ? 1
       : sortOrder === "oldest"
       ? -1
