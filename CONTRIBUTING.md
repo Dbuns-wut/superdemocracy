@@ -4,7 +4,7 @@ Local source of truth is this GitHub clone. Work on a branch, open a pull reques
 
 ## Vision
 
-Read [docs/plan/north-star.md](docs/plan/north-star.md) before changing product behavior. Full reference: [docs/plan/master-plan.md](docs/plan/master-plan.md). Current **code** is what exists; the plan is the intended direction.
+Read [docs/plan/north-star.md](docs/plan/north-star.md) and [docs/plan/governance-principles.md](docs/plan/governance-principles.md) before changing product behavior. Full reference: [docs/plan/master-plan.md](docs/plan/master-plan.md). Current **code** is what exists; the plan is the intended direction.
 
 - Do not invent product behavior, scope, or copy. Ask first.
 - Member-facing UI should not expose blockchain jargon. See [docs/product-language-guide.md](docs/product-language-guide.md).

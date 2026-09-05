@@ -6,7 +6,7 @@ alwaysApply: true
 
 # SuperDemocracy vision
 
-Before changing product behavior, architecture, or copy, read `docs/plan/README.md` and `docs/plan/north-star.md`. The full reference is `docs/plan/master-plan.md`.
+Before changing product behavior, architecture, or copy, read `docs/plan/README.md`, `docs/plan/north-star.md`, and `docs/plan/governance-principles.md`. The full reference is `docs/plan/master-plan.md`.
 
 Current code defines what exists. The plan is the intended direction. Do not invent scope.
 

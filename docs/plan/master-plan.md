@@ -514,6 +514,7 @@ Do not silently turn a hypothesis from the book into a permanent technical requi
 These files live in `docs/plan/` so the project does not scatter across chats.
 
 - [north-star.md](north-star.md) — short vision and non-negotiable principles
+- [governance-principles.md](governance-principles.md) — durable governance principles (bridge to a future constitution)
 - [system-specification.md](system-specification.md) — intended software behavior
 - [security-architecture.md](security-architecture.md) — security and privacy
 - [research-and-decisions.md](research-and-decisions.md) — evidence and design decisions

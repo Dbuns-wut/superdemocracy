@@ -2,7 +2,7 @@
 
 Civic governance app: community organizations, petitions, polls, and votes. Optional on-chain organizations and referendums via Foundry contracts.
 
-**Vision:** [docs/plan/north-star.md](docs/plan/north-star.md) (short) · [docs/plan/master-plan.md](docs/plan/master-plan.md) (full). More plan docs will land in [docs/plan/](docs/plan/README.md).
+**Vision:** [docs/plan/north-star.md](docs/plan/north-star.md) · [docs/plan/governance-principles.md](docs/plan/governance-principles.md) · [docs/plan/master-plan.md](docs/plan/master-plan.md). More plan docs: [docs/plan/](docs/plan/README.md).
 
 ## Setup
 

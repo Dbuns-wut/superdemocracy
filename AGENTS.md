@@ -2,7 +2,7 @@
 
 ## Vision
 
-Read [docs/plan/README.md](docs/plan/README.md) and [docs/plan/north-star.md](docs/plan/north-star.md) before product or architecture work. [docs/plan/master-plan.md](docs/plan/master-plan.md) is the full working reference. More plan documents will be added in `docs/plan/`.
+Read [docs/plan/README.md](docs/plan/README.md), [docs/plan/north-star.md](docs/plan/north-star.md), and [docs/plan/governance-principles.md](docs/plan/governance-principles.md) before product or architecture work. [docs/plan/master-plan.md](docs/plan/master-plan.md) is the full working reference. More plan documents will be added in `docs/plan/`.
 
 Code is what exists. The plan is the intended direction.
 
