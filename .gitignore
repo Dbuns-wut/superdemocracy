@@ -49,3 +49,6 @@ next-env.d.ts
 /contracts/cache/
 /contracts/out/
 /contracts/broadcast/
+
+# scratch extracts (never commit)
+.tmp-master-plan/

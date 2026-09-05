@@ -2,11 +2,15 @@
 
 Civic governance app: community organizations, petitions, polls, and votes. Optional on-chain organizations and referendums via Foundry contracts.
 
+**Vision:** [docs/plan/north-star.md](docs/plan/north-star.md) (short) · [docs/plan/master-plan.md](docs/plan/master-plan.md) (full). More plan docs will land in [docs/plan/](docs/plan/README.md).
+
 ## Setup
 
 Needs Node.js 20+ and npm.
 
 ```bash
+git clone https://github.com/Dbuns-wut/superdemocracy.git
+cd superdemocracy
 npm install
 npm run dev
 ```
@@ -14,6 +18,8 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000). Community orgs, polls, and votes work from JSON files under `data/` with no Docker or Postgres.
 
 Copy `.env.example` to `.env.local` if you need optional contract addresses, Postgres, or ballot encryption.
+
+This repo’s local original is a native Windows clone of GitHub (same pattern as Quoter). Do not keep a second WSL copy as source of truth.
 
 ### Postgres (optional)
 

@@ -1,0 +1,13 @@
+---
+description: SuperDemocracy vision — read plan docs before product work
+globs:
+alwaysApply: true
+---
+
+# SuperDemocracy vision
+
+Before changing product behavior, architecture, or copy, read `docs/plan/README.md` and `docs/plan/north-star.md`. The full reference is `docs/plan/master-plan.md`.
+
+Current code defines what exists. The plan is the intended direction. Do not invent scope.
+
+Member-facing UI: follow `docs/product-language-guide.md` (no blockchain jargon in community-org flows).

@@ -21,3 +21,5 @@ A feature slice is not done until:
 ## Product language
 
 Follow `docs/product-language-guide.md` — hide blockchain jargon in member-facing flows.
+
+Read `docs/plan/north-star.md` before inventing product behavior.
