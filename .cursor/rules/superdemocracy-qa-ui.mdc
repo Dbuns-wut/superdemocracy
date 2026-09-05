@@ -1,0 +1,23 @@
+---
+description: SuperDemocracy feature DoD — UI style, flowchart simplicity, edge cases, finish forms
+globs: **/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# SuperDemocracy — slice Definition of Done
+
+A feature slice is not done until:
+
+1. **Works** — happy path verified (build/lint/tests and/or manual flow).
+2. **UI style** — symmetry/consistency; minimal placeholders; no code-looking primary UI; minimal subtitles; no redundant labels; compact left-aligned buttons on wide layouts; centered modal cards; no dead `href="#"`.
+3. **Flowchart simplicity** — user/data path nearly a straight line. If convoluted, simplify before shipping.
+4. **Edge cases** — unsigned/forged/expired signatures, double submit, ineligible actor, closed votes, missing education ack, empty states, wallet disconnect — handled with clear errors or safe no-ops.
+
+## Half-built forms
+
+- Prefer **finishing** half-built forms over Coming soon or hiding.
+- On product ambiguity, **ask** — do not invent behavior, scope, or copy policy.
+
+## Product language
+
+Follow `docs/product-language-guide.md` — hide blockchain jargon in member-facing flows.
