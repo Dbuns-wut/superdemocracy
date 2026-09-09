@@ -1,4 +1,4 @@
-# Security architecture
+# SUPERDEMOCRACY — SECURITY ARCHITECTURE
 
 ## Security Thesis
 **Never sacrifice vote secrecy for auditability.**

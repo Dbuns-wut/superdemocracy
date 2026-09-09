@@ -1,10 +1,8 @@
-# System specification
+# SUPERDEMOCRACY — SYSTEM SPECIFICATION
 
-**Status:** Living engineering specification.
-
-**What exists today:** the Next.js app at repo root already ships community organizations (off-chain polls, petitions, and votes). On-chain organizations and referendums are optional. When this document and the code disagree, record it in [../DECISION-LOG.md](../DECISION-LOG.md) and decide — the code describes what exists but does not outrank the vision documents (see [README.md](README.md) for the authority order).
-
-**Earlier handoff note:** connecting the frontend to live on-chain petition data without breaking contract architecture. That remains a goal for governance orgs; it is not an excuse to ignore community-org work already in the tree.
+**Status:** Living engineering specification.  
+**Authority:** below the [Constitution](constitution.md), [principles](governance-principles.md), and [master plan](master-plan.md); above the code. When this document and the code disagree, record it in [../DECISION-LOG.md](../DECISION-LOG.md) and decide — do not assume the code is right.  
+**Current priority:** Connect the frontend to live petition data without breaking the established contract architecture.
 
 ## 1. Product Model
 Superdemocracy is a governance platform with two broad organization modes:
@@ -85,7 +83,7 @@ Petition fields currently include:
 Constructor:
 `(string title, string description, string[] options, uint256 startTime, uint256 endTime, address identityVerifier, address organization)`
 
-`organization` binds the referendum to the org that launched it through `ReferendumFactory` (see decision D-2026-09-09-11).
+`organization` binds the referendum to the org that launched it through `ReferendumFactory` (decision D-2026-09-09-11).
 
 Current/future ballot architecture must preserve ranked ballots even when the UI temporarily presents Yes/No.
 
@@ -97,7 +95,9 @@ Current/future ballot architecture must preserve ranked ballots even when the UI
 - Admin approval can occur before referendum launch.
 - Launch requires not rejected, approved, threshold met, and not already launched.
 - Admins must be members.
-- Petition signatures collected before approval must be re-verified after approval.
+- Petition signatures collected before approval must be re-verified after approval, unless the signer is globally verified (government ID). No real global verification exists yet, so today every signer is re-verified (D-2026-09-09-08).
+- Petition signatures are actively monitored; a signer who becomes ineligible (death, moved out of the jurisdiction, lost membership) has their signature removed and counts recomputed (D-2026-09-09-08).
+- Citizen-initiative flows (petition → approval → launch) are an organization setting, off for orgs that do not allow member initiatives (D-2026-09-09-01).
 
 ## 5. Voting Architecture
 Raw ballots are preserved separately from result calculation.
@@ -114,10 +114,10 @@ Required principles:
 Future methods may include ranked choice, approval, first-past-the-post, Condorcet, quadratic or delegated mechanisms where appropriate. These are capabilities/research directions, not a requirement to enable every method at once.
 
 ## 6. Education Gate
-Current UX requires the voter to open educational information before casting a ballot. The contract may enforce acknowledgement independently of the UI.
+Users are required to open or acknowledge the relevant educational information before casting a ballot. This is a core Superdemocracy gate; it is on everywhere by default.
 
-- **On-chain referendums:** `Referendum.acknowledgeEducation()` is required before `vote()`.
-- **Community orgs:** the gate is a UI gate only (no chain), on by default, and an org admin may turn it off in the org's settings. Not yet implemented — see the [decision log](../DECISION-LOG.md) (D-2026-09-09-05) and [todo.md](todo.md).
+- **Governance organizations (on-chain referendums):** `Referendum.acknowledgeEducation()` is required before `vote()`. The contract enforces it independently of the UI.
+- **Community organizations (off-chain):** the gate is a UI gate only — no contract involvement. It is on by default and an org admin may turn it off in the org's settings. Not yet implemented (D-2026-09-09-05, [todo.md](todo.md)).
 
 The member-facing information tab is called **Perspectives**; it is where the Pros vs Cons layer lives (D-2026-09-09-06).
 
@@ -186,6 +186,8 @@ Future capabilities include:
 - ranked-choice counting
 - switchable counting methods
 - topic-specific liquid delegation
+- Expert Qualification as the soft default for delegation eligibility
+- immediate delegation revocation
 - multiple simultaneous petitions
 - real identity provider integration
 - privacy-preserving demographics/research data
@@ -193,5 +195,7 @@ Future capabilities include:
 - prediction/forecasting data
 - AI-assisted evidence and deliberation
 
-## 12. Current engineering goal
-Ship with the code that exists: community orgs first, on-chain governance orgs without breaking contract architecture. Do not expand scope without a reason.
+## 12. Current Engineering Goal
+**Connect the frontend to live petition data** without breaking the contract architecture. `app/petitions/page.tsx` already reads live chain logs; finish and stabilize that path.
+
+Do not expand scope until that path is stable. The tree already contains community orgs, messaging, invites, and encrypted community votes — that surface stays (D-2026-09-09-12). Open items: [todo.md](todo.md).

@@ -4,7 +4,7 @@ Items Dustin and the agents still need to decide or build. Decisions behind each
 
 ## Docs
 
-- [ ] **Re-supply the 2026-09-08 handoff zip** (`SUPERDEMOCRACY-CURSOR-HANDOFF-FINAL.zip`). It is no longer on disk. When it is back: commit `constitution.md`, `governance-measurement.md`, the v0.2 `governance-principles.md`, updated master plan / spec / security docs, and merge its decision log into `docs/DECISION-LOG.md`. Fix Anvil values to `31338` / `8546` in the copies (D-2026-09-09-03).
+- [ ] **Amend the Education Before Vote wording** in `north-star.md` and `governance-principles.md` ("not an optional organization setting") to reflect the community-org exception. Chief Architect edit — Constitution Article X §2 requires the departure to be explicit. (D-2026-09-09-05)
 
 ## Product decisions still open
 

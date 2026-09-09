@@ -52,3 +52,5 @@ next-env.d.ts
 
 # scratch extracts (never commit)
 .tmp-master-plan/
+
+.tmp-handoff/

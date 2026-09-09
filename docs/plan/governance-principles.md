@@ -1,8 +1,8 @@
 # Superdemocracy Governance Principles
 
 **Status:** Canonical project principle document  
-**Version:** 0.1  
-**Date:** 2026-09-05  
+**Version:** 0.2  
+**Date:** 2026-09-08  
 **Chief Architect:** Dustin Murray
 
 ---
@@ -13,7 +13,7 @@ Superdemocracy exists to improve collective decision-making without replacing de
 
 These principles are the durable layer beneath individual features. Contracts, user interfaces, voting methods, identity systems, research programs, and AI capabilities may change. The principles below should change only deliberately, with reasons recorded in the project Decision Log.
 
-The future Superdemocracy Constitution will formalize these ideas. Until then, this document is the bridge between the founding manuscript and the technical system.
+The Superdemocracy Project Constitution formalizes these ideas at the highest project level. This document remains the concise bridge between the founding manuscript and the technical system.
 
 ---
 
@@ -74,6 +74,8 @@ For genuine For/Against questions, a clear **Pros vs Cons** presentation is the 
 
 The first layer should be simple. Depth should remain available.
 
+**Users are required to open or acknowledge the relevant educational information before casting a vote.** The gate is intended to put information directly in the path of the decision, not to test ideology or pretend the platform can prove that a person became informed.
+
 ---
 
 ## 6. Information Must Remain Traceable to Sources
@@ -90,7 +92,7 @@ Claims should be traceable to their source material. Uncertainty, disagreement, 
 
 There is no single perfect voting method for every problem.
 
-A simple binary decision may justify For/Against voting. A question with several legitimate solutions may justify ranked choice or another multi-option method. Complex questions may benefit from deliberation. Specialized questions may benefit from expert information or delegation. Emergencies may require accelerated procedures with predefined safeguards.
+A simple binary decision may justify For/Against voting. A question with several legitimate solutions may justify ranked choice or another multi-option method. Complex questions may benefit from deliberation. Specialized questions may benefit from expert information or delegation. Foreseeable emergencies may benefit from proactive protocols decided before the crisis so that prior deliberation can produce rapid action when needed.
 
 Superdemocracy should support multiple methods while keeping the underlying rules explicit and auditable.
 
@@ -100,21 +102,11 @@ Superdemocracy should support multiple methods while keeping the underlying rule
 
 Superdemocracy should provide governance capabilities rather than force every organization into one political constitution.
 
-An organization may enable or disable features such as:
+Organizations may configure many features such as petitions, referendums, voting methods, deliberation, delegation, expert participation, forecasting, measurement, and AI assistance.
 
-- petitions;
-- referendums;
-- ranked-choice voting;
-- education requirements;
-- deliberation;
-- delegation;
-- expert participation;
-- forecasting;
-- outcome measurement;
-- and AI assistance.
+Some Superdemocracy rules are core platform principles rather than ordinary settings. The Education Before Vote gate and fundamental integrity protections are examples.
 
-The platform can provide sensible defaults, but legitimate organizations retain control over the processes within their jurisdiction.
-
+For configurable features, the platform can provide evidence-informed soft defaults while legitimate organizations retain control over the processes within their jurisdiction.
 ---
 
 ## 9. Power Should Be Bottom-Heavy
@@ -131,22 +123,24 @@ Superdemocracy should make experimentation easier without requiring every experi
 
 Governance design should be treated as an empirical discipline rather than a collection of sacred assumptions.
 
-A proposed process should be tested where it can safely be tested. Participation, decision quality, implementation, satisfaction, cost, security, and later outcomes should be measured when measurement is legitimate and privacy-preserving.
+A proposed process should be tested where it can safely be tested. The platform should preserve useful behavioral data and collect lightweight, privacy-preserving feedback capable of showing whether a process improves satisfaction, trust, perceived voice, information quality, participation, acceptance of results, and the broader goal of reducing tribal political behavior.
 
 Features that work can expand. Features that fail should be changed or removed.
 
 The objective is a system capable of learning.
-
 ---
 
-## 11. Measure Outcomes, Not Just Intentions
+## 11. Measure Governance Experience and Policy Outcomes Separately
 
-A democratic decision is not automatically a successful policy because it was popular, well intentioned, or procedurally legitimate.
+The health of a democratic decision process is not the same thing as the later performance of the policy it selected.
 
-Where practical, Superdemocracy should help organizations record what a decision was expected to accomplish and later examine what actually happened.
+Superdemocracy should measure the governance experience: satisfaction with organizational decision-making, trust, perceived voice, information quality, acceptance of legitimate results, polarization or winner-versus-loser resentment, and participation in context.
 
-This does not mean reducing all politics to a single numerical score. It means preserving enough institutional memory to ask whether decisions produced the results people expected.
+Participation alone is not success. High turnout may reflect engagement or crisis; low turnout may reflect apathy, delegation, low stakes, or broad satisfaction.
 
+Where a chosen policy has measurable implementation goals, the organization may define those goals and use the platform to examine what happened later. Those metrics are case-specific.
+
+The project should not invent one universal policy objective or one opaque democracy score.
 ---
 
 ## 12. Failure Should Be Contained and Reversible Where Possible
@@ -159,25 +153,26 @@ This is one reason local-first adoption matters.
 
 ---
 
-## 13. Democratic Sovereignty Can Coexist With Competence
+## 13. Democratic Sovereignty Can Coexist With Qualified Expertise
 
-Superdemocracy does not assume that every person knows equally much about every subject. It also does not assume that credentials alone establish political wisdom.
+Superdemocracy does not assume that every person has equal expertise in every subject.
 
-Citizens may choose to rely on experts, delegates, administrators, or other trusted people for specialized questions while retaining sovereignty over whether and how that authority is granted.
+When liquid delegation is enabled, **Expert Qualification should be the Superdemocracy soft default** for people eligible to receive topic-specific delegations. Qualification may be based on relevant education or certification, demonstrated professional experience, accomplishment or success in the field, proven proficiency, or other evidence appropriate to the topic.
 
-The long-term objective is **democratic sovereignty combined with meritocratic participation in specialized decision-making**.
+This matters because liquid democracy without qualification can recreate an old political failure: a famous, charismatic, or viral personality may gather influence through popularity rather than competence.
 
-Competence should be demonstrated and testable where possible, not permanently declared by status.
+Expert Qualification is intended to direct delegated authority toward people with relevant demonstrated ability while citizens retain sovereignty and the immediate ability to revoke their delegation.
 
+The objective is democratic sovereignty combined with meritocratic participation in specialized decision-making, not a permanent expert ruling class.
 ---
 
 ## 14. Delegation Should Be Topic-Specific and Instantly Revocable
 
 When liquid delegation is enabled, delegation should be narrow enough to reflect real trust.
 
-A person may trust one delegate on energy, another on finance, and choose to vote personally on education. Delegation should be editable or revocable without waiting for a four-year political cycle.
+A person may trust one delegate on energy, another on finance, and choose to vote personally on education. Delegation should be editable and revocable immediately.
 
-Large concentrations of delegated voting power are not inherently illegitimate if they arise voluntarily. The essential safeguard is that the authority remains transparent under the rules and can be withdrawn.
+Large concentrations of delegated voting power are not inherently illegitimate if they arise voluntarily. The primary democratic protection is that delegated authority can be withdrawn immediately.
 
 Changing a delegation must not rewrite a ballot that has already been validly cast.
 
@@ -261,26 +256,20 @@ Security claims must be demonstrated at the level of the entire voting system, n
 
 ---
 
-## 22. AI May Assist, Advise, Delegate, and Administer - But It Does Not Own Sovereignty
+## 22. AI May Assist the Platform - Political Authority Remains Organization-Defined
 
-AI can eventually help with information curation, deliberation, forecasting, administration, policy analysis, and perhaps delegated decision-making.
+AI may help with information curation, deliberation, forecasting, administration, policy analysis, accessibility, and other useful platform functions.
 
-Any future AI authority must arise from explicit governing rules and human delegation. It should remain reviewable, bounded, and removable according to those rules.
+Each organization decides for itself whether AI may ever receive delegated political authority.
 
-The long-term possibility of an AI constitutional executive is an experiment in delegated authority, not a claim that an AI possesses a natural right to govern.
-
-Humans determine legitimate direction and values. AI may help optimize within them.
-
+If an organization permits such delegation, AI cannot create, enlarge, or perpetuate its own political authority, and lawful democratic mechanisms must remain able to withdraw it.
 ---
 
 ## 23. Direct Democratic Restraints Must Survive More Advanced Governance
 
-If Superdemocracy evolves toward expert delegation, AI delegates, automated administration, or an AI executive, the ability of citizens to intervene must not quietly disappear.
+As Superdemocracy adds more advanced governance capabilities, the ability of citizens to intervene directly must not quietly disappear.
 
-The system's sophistication should increase without removing the democratic back door that made the system accountable in the first place.
-
-More capable administration is not permission for less accountable government.
-
+The system's sophistication should increase without removing the democratic back door that made it accountable in the first place.
 ---
 
 ## 24. Adoption Is Voluntary and Performance-Driven
@@ -334,7 +323,7 @@ Significant changes should record:
 - what assumptions remain uncertain;
 - what would cause the decision to be revisited.
 
-The Chief Architect's role is to protect coherence, not to freeze every early idea forever.
+The Chief Architect role exists only to preserve coherence during development.
 
 ---
 
@@ -354,19 +343,11 @@ That continuing capacity to learn is the point.
 
 # Stewardship
 
-The **Chief Architect** is the steward of the project's North Star, not an unquestionable authority over truth. The role is to maintain coherence between the founding vision, research, governance principles, security requirements, and technical implementation.
+While Superdemocracy remains founder-led, the **Chief Architect** is the final steward of the canonical project direction and may approve or reject proposed changes and pull requests.
 
-Contributors and AI systems should challenge assumptions when evidence or implementation experience warrants it. They should not silently change the project's purpose while solving a local engineering problem.
+The role exists only to preserve coherence during development.
 
-Until a formal Superdemocracy Project Constitution is adopted, disagreements should be resolved in this order:
-
-1. preserve democratic sovereignty and vote secrecy;
-2. preserve the North Star and these Governance Principles;
-3. consult the Master Plan and current System Specification;
-4. consult the Security Architecture for security/privacy decisions;
-5. consult the Decision Log and research record;
-6. treat the full manuscript as founding philosophy and intellectual history when later documents have refined implementation details.
-
+Where documents conflict, follow the authority order established by the Superdemocracy Project Constitution.
 ---
 
 ## One-Sentence Test

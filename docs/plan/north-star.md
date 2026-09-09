@@ -1,4 +1,4 @@
-# North star
+# SUPERDEMOCRACY — NORTH STAR
 
 **Author:** Dustin Murray  
 **Purpose:** The shortest authoritative statement of what Superdemocracy is trying to become.
@@ -27,7 +27,7 @@ The platform should have a sensible soft default, while advanced mechanisms rema
 6. Choose between For/Against or multiple legitimate options.
 7. Vote directly or delegate by topic when delegation is enabled.
 8. Implement the decision.
-9. Measure outcomes.
+9. Measure governance experience; measure policy outcomes separately when a decision has defined goals.
 10. Learn, revise, or reverse when appropriate.
 
 ## Information First
@@ -38,18 +38,18 @@ Default information architecture:
 - **Level 2 — Evidence:** claims, evidence for and against, expert statements, statistics, studies, and relevant history.
 - **Level 3 — Sources:** legislation, government reports, court decisions, academic papers, accredited reference works, primary sources, datasets, and original documents.
 
-Users must open the educational information before voting in the current system. This is an acknowledgement gate, not a claim that the platform can prove someone became informed.
+Users are required to open or acknowledge the relevant educational information before voting. This is a core Superdemocracy gate, not an optional organization setting and not a claim that the platform can prove someone became informed.
 
 ## Democracy Is an Experiment
 The system should be capable of local experimentation. Successful mechanisms can be copied; failed mechanisms can be discarded. Governance should not be forced to evolve only once every four years.
 
 ## Competence + Democracy
-Citizens retain sovereignty. Specialized decisions may use qualified experts or trusted delegates when the organization enables those mechanisms. Expertise itself must be designed and tested carefully; credentials are not automatically equivalent to competence.
+Citizens retain sovereignty. When liquid delegation is enabled, Expert Qualification is the Superdemocracy soft default for receiving topic-specific delegations. Qualification may be based on relevant education or certification, demonstrated professional experience, accomplishment or success in the field, proven proficiency, or other evidence appropriate to the topic. Its purpose is to prevent fame or charisma from substituting for competence.
 
 ## Liquid Democracy
 Delegation is a future capability, not the V1 default.
 
-When enabled, delegation should be **topic-specific**, instantly editable, and instantly revocable. Delegation changes affect future voting authority; historical ballots remain immutable.
+When enabled, delegation must be **topic-specific**, instantly editable, and instantly revocable. The primary democratic protection is the ability to withdraw delegated authority immediately. Delegation changes affect future voting authority; historical ballots remain immutable.
 
 Principle: **Permanent historical decisions, impermanent political authority.**
 
@@ -79,10 +79,17 @@ Keep three layers separate:
 
 Smart contracts enforce governance rules. Content/evidence lives outside contracts. The frontend presents the experience. Rules must never depend on UI behavior.
 
-## Long-Term AI Direction
-AI may eventually become a powerful delegate, administrator, deliberation assistant, forecasting system, or constitutional executive. That is a future research direction, not a V1 feature.
+## AI Direction
+AI may assist with information, education, deliberation, analysis, administration, and other useful platform functions.
 
-Any future AI authority must remain voluntarily delegated and revocable. Humans determine direction and values; AI can help optimize within those constraints.
-
+Organizations decide for themselves whether AI may ever receive delegated political authority. If an organization permits it, AI cannot create, enlarge, or perpetuate its own authority, and lawful democratic mechanisms must remain able to withdraw that authority.
 ## Ultimate Standard
 **Don't trust us. Verify us.**
+
+
+## Governance Measurement
+
+Superdemocracy should track whether people become more satisfied with organizational decision-making, trust the process, feel heard, find the information useful and balanced, and accept legitimate outcomes even when their preferred option loses. Participation is preserved but interpreted in context rather than treated as success by itself.
+
+Feedback should be lightweight and adaptive. Policy implementation metrics are separate and case-specific.
+

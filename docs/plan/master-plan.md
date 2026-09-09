@@ -1,7 +1,9 @@
-# Master plan
+# SUPERDEMOCRACY — MASTER PLAN
 
 **Author / Founder:** Dustin Murray  
-**Purpose:** Single source of truth for the Superdemocracy vision, governance philosophy, product architecture, security direction, research, engineering rules, and roadmap.
+**Purpose:** Consolidated implementation plan for the Superdemocracy vision, governance philosophy, product architecture, security direction, research, engineering rules, and roadmap.
+
+**Authority:** The Superdemocracy Project Constitution is higher authority than this document. Significant accepted design decisions are recorded in `/docs/DECISION-LOG.md`.
 
 ---
 
@@ -43,8 +45,10 @@ Examples include:
 - expert participation
 - topic-specific delegation
 - forecasting
-- outcome measurement
+- governance measurement
 - AI assistance
+
+Many governance features are configurable. The Education Before Vote gate and fundamental integrity protections are core platform rules rather than ordinary organization toggles.
 
 The platform should be simple for ordinary users while keeping advanced governance machinery available underneath.
 
@@ -59,7 +63,7 @@ A problem, proposal, or question emerges.
 - simple / low complexity → referendum
 - complex → optional deliberation
 - specialized → expert information and/or delegation
-- emergency → accelerated process
+- emergency → a proactive emergency protocol established before the crisis, when one exists
 
 The organization retains control over which capabilities are enabled.
 
@@ -95,6 +99,8 @@ Make understanding ridiculously easy.
 
 The first page should stay uncluttered. Users who want depth can drill down.
 
+**Education Before Vote is mandatory:** users must open or acknowledge the relevant educational information before casting a vote.
+
 ### D. Deliberation
 Optional for complex questions. It can eventually include structured records of participants, evidence, arguments, agreements, disagreements, proposed solutions, and the resulting decision.
 
@@ -111,7 +117,9 @@ When enabled, citizens can vote themselves or delegate by topic. Delegation must
 The decision is executed by the relevant organization/government.
 
 ### I. Measurement
-Record outcomes and evaluate whether the policy actually worked.
+Measure the governance experience through privacy-preserving behavioral data and lightweight feedback: satisfaction, trust, perceived voice, information quality, acceptance of results, polarization, and participation in context.
+
+Where a chosen policy has defined implementation goals, the organization may separately record and evaluate those case-specific outcomes.
 
 ### J. Feedback / Reversal
 Where the organization's rules allow it, decisions can be revisited, corrected, or reversed.
@@ -159,10 +167,13 @@ Research traditions include deliberative democracy, citizens' assemblies, vTaiwa
 
 The desired philosophy is **democratic sovereignty combined with meritocratic participation in specialized decision-making**.
 
-Citizens retain ultimate authority. For specialized questions, they may use qualified experts or delegates if the organization enables that feature.
+Citizens retain ultimate authority.
 
-This does not mean assuming that credentials equal competence. The platform should experiment with ways to identify useful expertise and measure whether experts actually improve outcomes.
+When liquid delegation is enabled, **Expert Qualification is the Superdemocracy soft default** for people eligible to receive topic-specific delegations. An organization may disable the qualification feature, but the default exists to prevent fame, charisma, popularity, or follower count from becoming substitutes for relevant competence.
 
+Qualification may be based on education or certification, demonstrated professional experience, accomplishment or success in the field, proven proficiency, or other organization-defined evidence appropriate to the topic.
+
+This follows the founding manuscript's explicit concern that unqualified liquid delegation could recreate the demagogue problem inside a new system.
 ---
 
 ## 8. LIQUID DEMOCRACY
@@ -174,6 +185,8 @@ Delegation should be:
 - instantly editable
 - instantly revocable
 - applicable to future voting authority
+
+Expert Qualification is the soft default for receiving topic-specific delegations.
 
 A person may trust one delegate on energy, another on healthcare, and vote personally on everything else. A delegate may accumulate substantial voting power if people voluntarily give it to them. Artificial caps should not be imposed merely to prevent concentration; the important control is immediate revocability and transparent rules.
 
@@ -199,6 +212,44 @@ A possible future flow:
 Do not initially weight political votes by prediction accuracy.
 
 Do not scrape social media to create prediction or competence profiles.
+
+---
+
+## 9A. GOVERNANCE MEASUREMENT
+
+Superdemocracy is intended to learn from the citizen experience in the same way a well-run product learns from user feedback.
+
+The project should track both mean and median satisfaction with organizational decision-making and preserve the distribution around them. Core dimensions include:
+
+- process satisfaction
+- result satisfaction
+- whether a participant's preferred outcome won
+- satisfaction and acceptance among participants who lost
+- trust in the process
+- perceived voice
+- information quality
+- perceived information bias
+- participation and abstention in context
+
+Participation should always be retained but should not be treated as success by itself.
+
+Feedback should be lightweight and adaptive. When the project is uncertain about a particular governance method, it should ask the smallest useful set of questions needed to test that uncertainty.
+
+Policy implementation outcomes are a separate, case-specific layer defined by the organization or decision.
+
+See `GOVERNANCE-MEASUREMENT.md` for the detailed framework.
+
+---
+
+## 9B. PROACTIVE EMERGENCY PROTOCOLS
+
+Superdemocracy provides organizations with the ability to establish emergency responses **before** a crisis occurs.
+
+The purpose is to perform the difficult democratic work in advance so an already-decided response can be executed rapidly and precisely when the defined emergency arises.
+
+Superdemocracy provides the capability and encourages proactive preparation. The organization decides the substance of its protocols.
+
+If no applicable Superdemocracy protocol exists, authority falls back to the organization's legitimate pre-existing governance and emergency processes.
 
 ---
 
@@ -358,9 +409,10 @@ Ballots must support ranked choices even if the current UI uses a simpler interf
 
 Verify runtime state before relying on these values.
 
-### Current goal
+### Current Goal
+**Connect the frontend to live petition data.**
 
-Ship useful governance for real groups, starting small. Community orgs (off-chain) already exist in this repo. On-chain petition/referendum paths should stay compatible with the contract architecture — do not turn that into a broad rewrite unless asked.
+Do not turn this into a broad architecture rewrite. Stabilize the live petition path first.
 
 ---
 
@@ -431,11 +483,15 @@ Avoid loops. Diagnose the root cause before retrying.
 - separate DelegationRegistry
 - topic-specific delegation
 - instant revocation/editing
-- research-driven competence/reputation experiments
+- Expert Qualification as the soft default for delegation eligibility
 
-### Phase 7 — Forecasting / Measurement
+### Phase 7 — Forecasting / Governance Measurement
 - optional pre-vote prediction
-- outcome measurement
+- lightweight governance feedback
+- satisfaction / trust / perceived voice / information-quality measurement
+- participation retained and interpreted in context
+- case-specific experiments comparing governance methods
+- organization-defined policy outcome measurement where appropriate
 - longitudinal governance research
 
 ### Phase 8 — AI Governance Assistance
@@ -446,9 +502,10 @@ Avoid loops. Diagnose the root cause before retrying.
 - forecasting assistance
 - administrative automation
 
-### Phase 9 — Constitutional Intelligence
-Long-term research only. AI may eventually become a powerful delegated executive/administrator operating within human-defined constitutional constraints. Political legitimacy remains human and revocation remains immediate.
+### Phase 9 — Optional AI Authority Research
+Long-term research only.
 
+Organizations decide for themselves whether AI may ever receive delegated political authority. Superdemocracy may research or support such capabilities as optional organization-controlled features, but AI cannot create, enlarge, or perpetuate its own authority.
 ---
 
 ## 18. LOCAL-FIRST EXPERIMENTATION
@@ -509,20 +566,25 @@ Do not silently turn a hypothesis from the book into a permanent technical requi
 
 ---
 
-## 21. Document organization
+## 21. AUTHORITY / DOCUMENT ORGANIZATION
 
-These files live in `docs/plan/` so the project does not scatter across chats.
+These documents live in `docs/plan/` so the project does not become scattered. Authority order and the full index are in [README.md](README.md).
 
+- [constitution.md](constitution.md) — project constitution; highest authority
 - [north-star.md](north-star.md) — short vision and non-negotiable principles
-- [governance-principles.md](governance-principles.md) — durable governance principles (bridge to a future constitution)
-- [system-specification.md](system-specification.md) — intended software behavior
-- [security-architecture.md](security-architecture.md) — security and privacy
-- [research-and-decisions.md](research-and-decisions.md) — evidence and design decisions
-- [master-plan.md](master-plan.md) — this file. If you only open one plan document, open this one
+- [governance-principles.md](governance-principles.md) — durable governance principles
+- [master-plan.md](master-plan.md) — this file. The **single master document**. If you only open one plan file, open this one
+- [system-specification.md](system-specification.md) — intended software behavior and architecture
+- [security-architecture.md](security-architecture.md) — security and privacy requirements
+- [governance-measurement.md](governance-measurement.md) — how we measure whether governance is getting better
+- [research-and-decisions.md](research-and-decisions.md) — evidence, hypotheses, and the original decisions 001–014
+- [../DECISION-LOG.md](../DECISION-LOG.md) — running record of accepted decisions
+- [todo.md](todo.md) — open questions and work not yet done
+- [../books/](../books/) — the founding manuscript, condensed book, and project primer
+- [../reference/](../reference/) — short reference patterns (AI contract guardrails, civic platform architecture rule)
+- [../../CONTRIBUTING.md](../../CONTRIBUTING.md) — rules for human and AI engineers
 
-More planning documents will be added in this folder over time. The founding book and other source manuscripts are not required in git until they have a clear filename and a reason to be here.
-
-Local Anvil account files must never be committed.
+Local Anvil account files and other dev-only credentials must never be committed to Git.
 
 ---
 
