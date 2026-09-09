@@ -2,7 +2,7 @@
 
 **Status:** Living engineering specification.
 
-**What exists today:** the Next.js app at repo root already ships community organizations (off-chain polls, petitions, and votes). On-chain organizations and referendums are optional. When this document and the code disagree, the code wins — update this file.
+**What exists today:** the Next.js app at repo root already ships community organizations (off-chain polls, petitions, and votes). On-chain organizations and referendums are optional. When this document and the code disagree, record it in [../DECISION-LOG.md](../DECISION-LOG.md) and decide — the code describes what exists but does not outrank the vision documents (see [README.md](README.md) for the authority order).
 
 **Earlier handoff note:** connecting the frontend to live on-chain petition data without breaking contract architecture. That remains a goal for governance orgs; it is not an excuse to ignore community-org work already in the tree.
 
@@ -83,7 +83,9 @@ Petition fields currently include:
 
 ### Referendum.sol
 Constructor:
-`(string title, string description, string[] options, uint256 startTime, uint256 endTime, address identityVerifier)`
+`(string title, string description, string[] options, uint256 startTime, uint256 endTime, address identityVerifier, address organization)`
+
+`organization` binds the referendum to the org that launched it through `ReferendumFactory` (see decision D-2026-09-09-11).
 
 Current/future ballot architecture must preserve ranked ballots even when the UI temporarily presents Yes/No.
 
@@ -113,6 +115,11 @@ Future methods may include ranked choice, approval, first-past-the-post, Condorc
 
 ## 6. Education Gate
 Current UX requires the voter to open educational information before casting a ballot. The contract may enforce acknowledgement independently of the UI.
+
+- **On-chain referendums:** `Referendum.acknowledgeEducation()` is required before `vote()`.
+- **Community orgs:** the gate is a UI gate only (no chain), on by default, and an org admin may turn it off in the org's settings. Not yet implemented — see the [decision log](../DECISION-LOG.md) (D-2026-09-09-05) and [todo.md](todo.md).
+
+The member-facing information tab is called **Perspectives**; it is where the Pros vs Cons layer lives (D-2026-09-09-06).
 
 The gate is not intended to certify competence or comprehension.
 

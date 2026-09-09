@@ -8,6 +8,6 @@ alwaysApply: true
 
 Before changing product behavior, architecture, or copy, read `docs/plan/README.md`, `docs/plan/north-star.md`, and `docs/plan/governance-principles.md`. The full reference is `docs/plan/master-plan.md`.
 
-Current code defines what exists. The plan is the intended direction. Do not invent scope.
+Current code defines what exists; it does not outrank the vision documents (authority order in `docs/plan/README.md`). When code and docs disagree, add an entry to `docs/DECISION-LOG.md` instead of silently picking a side. Open questions live in `docs/plan/todo.md`. Do not invent scope, and do not remove built features to match a narrower document.
 
 Member-facing UI: follow `docs/product-language-guide.md` (no blockchain jargon in community-org flows).

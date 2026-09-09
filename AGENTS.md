@@ -4,7 +4,7 @@
 
 Read [docs/plan/README.md](docs/plan/README.md), [docs/plan/north-star.md](docs/plan/north-star.md), and [docs/plan/governance-principles.md](docs/plan/governance-principles.md) before product or architecture work. [docs/plan/master-plan.md](docs/plan/master-plan.md) is the full working reference. More plan documents will be added in `docs/plan/`.
 
-Code is what exists. The plan is the intended direction.
+Code is what exists. The plan is the intended direction. Authority order is in [docs/plan/README.md](docs/plan/README.md); code is last, not first. Log code/doc conflicts in [docs/DECISION-LOG.md](docs/DECISION-LOG.md). Open items: [docs/plan/todo.md](docs/plan/todo.md).
 
 ## Repo layout
 
