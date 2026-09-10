@@ -2,10 +2,6 @@
 
 Items Dustin and the agents still need to decide or build. Decisions behind each item are in [../DECISION-LOG.md](../DECISION-LOG.md). Not a sprint board; remove items when they land.
 
-## Docs
-
-- [ ] **Amend the Education Before Vote wording** in `north-star.md` and `governance-principles.md` ("not an optional organization setting") to reflect the community-org exception. Chief Architect edit — Constitution Article X §2 requires the departure to be explicit. (D-2026-09-09-05)
-
 ## Product decisions still open
 
 - [ ] **Perspectives ↔ Pros vs Cons / Quick Debrief.** Map the existing Perspectives tab onto the three information levels without losing the neutral name. Dustin wants to look at the running app first (`npm run dev` → a referendum page) before deciding. (D-2026-09-09-06)

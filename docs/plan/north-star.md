@@ -38,7 +38,7 @@ Default information architecture:
 - **Level 2 — Evidence:** claims, evidence for and against, expert statements, statistics, studies, and relevant history.
 - **Level 3 — Sources:** legislation, government reports, court decisions, academic papers, accredited reference works, primary sources, datasets, and original documents.
 
-Users are required to open or acknowledge the relevant educational information before voting. This is a core Superdemocracy gate, not an optional organization setting and not a claim that the platform can prove someone became informed.
+Users are required to open or acknowledge the relevant educational information before voting. This is a core Superdemocracy gate, on by default everywhere, and not a claim that the platform can prove someone became informed. Community organizations may turn the UI gate off in their settings. Governance organizations keep it required; on-chain referendums enforce it in the contract.
 
 ## Democracy Is an Experiment
 The system should be capable of local experimentation. Successful mechanisms can be copied; failed mechanisms can be discarded. Governance should not be forced to evolve only once every four years.

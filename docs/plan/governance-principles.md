@@ -1,8 +1,8 @@
 # Superdemocracy Governance Principles
 
 **Status:** Canonical project principle document  
-**Version:** 0.2  
-**Date:** 2026-09-08  
+**Version:** 0.3  
+**Date:** 2026-09-10  
 **Chief Architect:** Dustin Murray
 
 ---
@@ -74,7 +74,7 @@ For genuine For/Against questions, a clear **Pros vs Cons** presentation is the 
 
 The first layer should be simple. Depth should remain available.
 
-**Users are required to open or acknowledge the relevant educational information before casting a vote.** The gate is intended to put information directly in the path of the decision, not to test ideology or pretend the platform can prove that a person became informed.
+**Users are required to open or acknowledge the relevant educational information before casting a vote.** The gate is on by default everywhere. Community organizations may turn the UI gate off in their settings; governance organizations cannot. The gate is intended to put information directly in the path of the decision, not to test ideology or pretend the platform can prove that a person became informed.
 
 ---
 
@@ -104,7 +104,7 @@ Superdemocracy should provide governance capabilities rather than force every or
 
 Organizations may configure many features such as petitions, referendums, voting methods, deliberation, delegation, expert participation, forecasting, measurement, and AI assistance.
 
-Some Superdemocracy rules are core platform principles rather than ordinary settings. The Education Before Vote gate and fundamental integrity protections are examples.
+Some Superdemocracy rules are core platform principles rather than ordinary settings. Fundamental integrity protections are examples. Education Before Vote is a core gate and is on by default; community organizations may disable the UI gate in their settings. Governance organizations cannot.
 
 For configurable features, the platform can provide evidence-informed soft defaults while legitimate organizations retain control over the processes within their jurisdiction.
 ---

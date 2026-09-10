@@ -61,9 +61,13 @@ Where possible, the system should encourage **solution versus solution** rather 
 
 ## Section 3. Education Before Vote Is Required
 
-Users are required to open or acknowledge the relevant educational information before casting a vote.
+Users are required to open or acknowledge the relevant educational information before casting a vote. The gate is on by default for every organization.
 
-The purpose is not to test ideology or force agreement. It is to place relevant information directly in the path of the decision.
+**Governance organizations** (on-chain referendums): the contract enforces acknowledgement independently of the user interface. Organizations may not turn this off.
+
+**Community organizations** (off-chain): the gate is a user-interface gate only. It remains on by default. An organization administrator may turn it off in that organization's settings.
+
+The purpose is not to test ideology or force agreement. It is to place relevant information directly in the path of the decision. The gate does not prove that a voter became informed.
 
 The information layer should make becoming informed as easy as reasonably possible and should distinguish source material, evidence, disagreement, and uncertainty.
 

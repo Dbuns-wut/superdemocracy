@@ -48,7 +48,7 @@ Examples include:
 - governance measurement
 - AI assistance
 
-Many governance features are configurable. The Education Before Vote gate and fundamental integrity protections are core platform rules rather than ordinary organization toggles.
+Many governance features are configurable. Fundamental integrity protections are core platform rules rather than ordinary organization toggles. Education Before Vote is a core gate and is on by default; community organizations may disable the UI gate in their settings. Governance organizations cannot.
 
 The platform should be simple for ordinary users while keeping advanced governance machinery available underneath.
 
@@ -99,7 +99,7 @@ Make understanding ridiculously easy.
 
 The first page should stay uncluttered. Users who want depth can drill down.
 
-**Education Before Vote is mandatory:** users must open or acknowledge the relevant educational information before casting a vote.
+**Education Before Vote is mandatory by default:** users must open or acknowledge the relevant educational information before casting a vote. Community organizations may turn the UI gate off in their settings. Governance organizations keep it required; on-chain referendums enforce it in the contract.
 
 ### D. Deliberation
 Optional for complex questions. It can eventually include structured records of participants, evidence, arguments, agreements, disagreements, proposed solutions, and the resulting decision.
