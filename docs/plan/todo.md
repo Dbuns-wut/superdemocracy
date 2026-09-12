@@ -17,5 +17,5 @@ Items Dustin and the agents still need to decide or build. Decisions behind each
 
 ## Housekeeping
 
-- [ ] Choose a `LICENSE` before the GitHub repo goes public.
-- [ ] Reconcile `cursor/2026-09-05` with `origin/main` (histories diverged when the Windows clone was created). Needs an explicit call from Dustin on how.
+- [x] MIT `LICENSE` added 2026-09-12.
+- [ ] Make this Windows tree GitHub `main` (histories have no common ancestor). Tag old `main` as `archive/wsl-monorepo-2026-07` first. Needs Dustin to say replace `main`.

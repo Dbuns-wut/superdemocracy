@@ -42,4 +42,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-A license has not been chosen yet. **Do not make this GitHub repository public until a `LICENSE` file is added.**
+[MIT](LICENSE) — Copyright (c) 2026 Dustin Murray.

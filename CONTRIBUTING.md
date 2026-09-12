@@ -54,4 +54,4 @@ Add an entry to [docs/DECISION-LOG.md](docs/DECISION-LOG.md) when a future contr
 
 ## License
 
-Do not make the GitHub repository public until a `LICENSE` file is added.
+[MIT](LICENSE).
