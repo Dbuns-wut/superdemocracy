@@ -54,4 +54,4 @@ Add an entry to [docs/DECISION-LOG.md](docs/DECISION-LOG.md) when a future contr
 
 ## License
 
-[MIT](LICENSE).
+Copyright (c) 2026 Dustin Murray. Public contributions are under [AGPL-3.0-or-later](LICENSE) unless a separate commercial license is agreed. See [COMMERCIAL.md](COMMERCIAL.md).

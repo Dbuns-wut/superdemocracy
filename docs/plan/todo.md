@@ -17,5 +17,5 @@ Items Dustin and the agents still need to decide or build. Decisions behind each
 
 ## Housekeeping
 
-- [x] MIT `LICENSE` added 2026-09-12.
-- [ ] Make this Windows tree GitHub `main` (histories have no common ancestor). Tag old `main` as `archive/wsl-monorepo-2026-07` first. Needs Dustin to say replace `main`.
+- [x] Dual license: AGPL-3.0-or-later for the public project; commercial license available from the copyright holder (D-2026-09-14-01). Old MIT file existed only on `main` for a short window before this change.
+- [x] Windows tree is GitHub `main`. Old WSL monorepo tagged `archive/wsl-monorepo-2026-07`.

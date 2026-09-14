@@ -42,4 +42,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 Dustin Murray.
+Copyright (c) 2026 Dustin Murray.
+
+This project is dual-licensed:
+
+- **[AGPL-3.0-or-later](LICENSE)** for the public GitHub project (use, study, modify, and host if you follow that license).
+- A **[commercial license](COMMERCIAL.md)** from the copyright holder for organizations that cannot or do not want to comply with the AGPL (for example closed-source hosted use).
+
+See [COMMERCIAL.md](COMMERCIAL.md). The commercial terms are agreed separately; that file is not the contract.

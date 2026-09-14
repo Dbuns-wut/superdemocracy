@@ -378,6 +378,17 @@ Recorded after auditing the repository against the 2026-09-08 handoff package. I
 
 ---
 
+## 2026-09-14 ? Dual License: AGPL Plus Commercial (D-2026-09-14-01)
+**Decision:** The public SuperDemocracy repository is licensed under GNU Affero General Public License v3.0 or later. Organizations that cannot or do not want to comply with the AGPL may obtain a separate commercial license from the copyright holder (Dustin Murray). The commercial contract is not in git; [COMMERCIAL.md](COMMERCIAL.md) only states that the option exists.
+
+**Why:** MIT would let a vendor host a closed fork and sell it without contributing back. AGPL keeps network-hosted modifications inspectable. A commercial license is how unions, cities, or hosts that need proprietary terms can still pay for that path. The short MIT file on `main` (2026-09-12) is superseded before the repository goes public.
+
+**Status:** Accepted.
+
+**Source:** Chief Architect decision.
+
+---
+
 # HOW TO ADD FUTURE ENTRIES
 
 Add an entry when a future contributor would reasonably ask:
