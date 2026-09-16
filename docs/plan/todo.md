@@ -17,5 +17,5 @@ Items Dustin and the agents still need to decide or build. Decisions behind each
 
 ## Housekeeping
 
-- [x] Dual license: AGPL-3.0-or-later for the public project; commercial license available from the copyright holder (D-2026-09-14-01). Old MIT file existed only on `main` for a short window before this change.
+- [x] Source-available public repo: inspect and contribute for free; production hosting needs a commercial license (D-2026-09-15-01). Supersedes AGPL dual-license.
 - [x] Windows tree is GitHub `main`. Old WSL monorepo tagged `archive/wsl-monorepo-2026-07`.

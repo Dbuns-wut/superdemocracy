@@ -54,4 +54,4 @@ Add an entry to [docs/DECISION-LOG.md](docs/DECISION-LOG.md) when a future contr
 
 ## License
 
-Copyright (c) 2026 Dustin Murray. Public contributions are under [AGPL-3.0-or-later](LICENSE) unless a separate commercial license is agreed. See [COMMERCIAL.md](COMMERCIAL.md).
+Copyright (c) 2026 Dustin Murray. See [LICENSE](LICENSE). By sending a pull request you give Dustin Murray the right to use and sell your contribution, including under a commercial license. Running SuperDemocracy for a real organization requires a paid license ([COMMERCIAL.md](COMMERCIAL.md)).

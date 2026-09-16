@@ -44,9 +44,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Copyright (c) 2026 Dustin Murray.
 
-This project is dual-licensed:
+This is **source available**, not open source. You may read the code, fork, contribute, and run it locally to try it. You may **not** host it for real members or real votes without a commercial license from Dustin Murray.
 
-- **[AGPL-3.0-or-later](LICENSE)** for the public GitHub project (use, study, modify, and host if you follow that license).
-- A **[commercial license](COMMERCIAL.md)** from the copyright holder for organizations that cannot or do not want to comply with the AGPL (for example closed-source hosted use).
-
-See [COMMERCIAL.md](COMMERCIAL.md). The commercial terms are agreed separately; that file is not the contract.
+- Terms: [LICENSE](LICENSE)
+- How to ask about paid use: [COMMERCIAL.md](COMMERCIAL.md)

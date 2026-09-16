@@ -2,18 +2,12 @@
 
 Copyright (c) 2026 Dustin Murray.
 
-SuperDemocracy is **dual-licensed**.
+The GitHub code is **source available**, not free to operate. See [LICENSE](LICENSE).
 
-## 1. GNU Affero General Public License v3.0 (or later)
+**Inspect and contribute for free.** Read the code, fork, send pull requests, run it on your laptop to try it.
 
-The public GitHub project is licensed under [AGPL-3.0-or-later](LICENSE). You may use, study, modify, and host it if you follow that license — including the requirement to offer complete corresponding source for a modified version you make available over a network.
+**Operate for a fee.** Hosting SuperDemocracy for real members or real votes needs a **separate written license** from Dustin Murray. That license is a contract agreed case by case. This file is not that contract. It does not set price, term, support, or indemnification.
 
-## 2. Commercial license
+To ask, open a GitHub issue or contact the Chief Architect through [the repository](https://github.com/Dbuns-wut/superdemocracy).
 
-Organizations that cannot or do not want to comply with the AGPL (for example a closed-source hosted offering, or a deployment that must stay proprietary) may obtain a **separate commercial license** from the copyright holder.
-
-That license is a contract agreed case by case. This file is **not** that contract. It does not set price, term, indemnification, or support.
-
-To ask about a commercial license, open a GitHub issue or contact the Chief Architect, Dustin Murray, through the [SuperDemocracy repository](https://github.com/Dbuns-wut/superdemocracy).
-
-The name SuperDemocracy is not licensed for use as someone else's product brand. A fork under the AGPL may say it is based on SuperDemocracy; it should not present itself as the official SuperDemocracy offering.
+The name SuperDemocracy is not licensed for use as someone else's product brand. A fork may say it is based on SuperDemocracy; it should not present itself as the official SuperDemocracy offering.
