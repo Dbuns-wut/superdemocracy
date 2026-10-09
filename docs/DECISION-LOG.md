@@ -303,7 +303,7 @@ Recorded after auditing the repository against the 2026-09-08 handoff package. I
 
 **Why:** A quick storage change would likely break voting entirely.
 
-**Status:** Accepted; work item open.
+**Status:** Superseded by D-2026-10-09-01. The public ranking map was still a defect. The fix keeps a sealed person-to-choice record for the appointed counter instead of deleting the link for everyone.
 
 **Source:** Chief Architect decision + audit.
 
@@ -397,6 +397,24 @@ Recorded after auditing the repository against the 2026-09-08 handoff package. I
 **Status:** Accepted. Plain-language license, not lawyer-drafted.
 
 **Source:** Chief Architect decision.
+
+---
+
+## 2026-10-09 ? Blockchain Votes Default to Auditor-Visible Records (D-2026-10-09-01)
+**Decision:**
+- Blockchain votes default to **auditor-visible**. An organization can turn that off.
+- The people who can see who voted how are the counters the organization appoints, using the same kind of appointment already used for people who count paper ballots. Government is included only when the organization appoints it.
+- Everyone else sees the tally. They do not see the person-to-choice link.
+- A voter is told the ballot was accepted and counted. They do not get a shareable proof of the choice.
+- The setting lives on the organization, not on the ballot card. It applies to votes started after it is saved. An open vote keeps the rule it started with. The counter can be replaced and can finish a count already underway.
+- If auditor visibility is on, leaking or selling how someone voted should be punished. The setting screen says that, along with the tradeoff: this mode is the strongest way to check an online vote, and a secret count cannot be checked person by person.
+- On chain, a vote transaction no longer carries a plaintext ranking. The sealed ballot is readable by the appointed counter. A secret referendum stores no choice in the contract. `Referendum.ballots` is gone.
+
+**Why:** The Chief Architect had been building toward auditor-visible votes so online elections can be checked the way bank payments can be traced, which is what makes frequent referendums trustworthy enough to use. An earlier constitution draft made total secrecy the default. That draft is withdrawn for blockchain votes. The benefits of a checkable count outweigh the cost of letting the appointed counters see individual ballots, as long as the public cannot, and as long as leaking the record is punished. A jurisdiction that wants a traditional secret count can turn the record off and accept a weaker proof.
+
+**Status:** Accepted. Constitution Article VI, the governance principles, the security architecture, the north star, and the master plan are amended to match.
+
+**Source:** Chief Architect decision, 2026-10-09. Supersedes the secrecy-is-the-default wording and D-2026-09-09-07.
 
 ---
 

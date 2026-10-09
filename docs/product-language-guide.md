@@ -15,6 +15,7 @@ This guide keeps product messaging aligned with the current architecture and roa
 - "Signed vote request (no transaction fee)"
 - "Private ballot handling"
 - "Auditor-only verification workflow"
+- "Vote accepted and counted." (do not name the choice on the ballot card)
 - "No gas fee required for community voting"
 
 ## Avoid in member-facing UX

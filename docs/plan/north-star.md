@@ -54,9 +54,9 @@ When enabled, delegation must be **topic-specific**, instantly editable, and ins
 Principle: **Permanent historical decisions, impermanent political authority.**
 
 ## Security and Privacy
-**Never sacrifice vote secrecy for auditability.**
+Blockchain votes default to auditor-visible records so citizens can take part directly and the count can still be checked. The appointed counter can see who voted how. The public sees the tally. An organization may turn the record off and accept a secret count that is harder to prove honest.
 
-The security objective is not simply blockchain voting. It is a layered, end-to-end verifiable, privacy-preserving, coercion-resistant system in which users do not have to blindly trust the platform.
+The security objective is not simply blockchain voting. It is a layered, checkable system in which users do not have to blindly trust the platform, and in which a person-to-choice record is not a public feed.
 
 Target philosophy:
 - public scrutiny

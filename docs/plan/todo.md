@@ -10,7 +10,7 @@ Items Dustin and the agents still need to decide or build. Decisions behind each
 
 ## Engineering — design before touching
 
-- [ ] **On-chain vote secrecy.** `Referendum.ballots[address]` is public. Design a storage/tally approach that keeps raw ballots but breaks the identity → ballot link, then change `vote()`, tally, ABI, and the referendum UI together. Do not patch quickly. (D-2026-09-09-07)
+- [x] **On-chain ballot visibility.** `Referendum.ballots[address]` is no longer a public ranking. Blockchain votes default to auditor-visible sealed ballots. The appointed counter can open them. A secret count stores no choice on chain. (D-2026-10-09-01, supersedes D-2026-09-09-07)
 - [ ] **Education Before Vote for community orgs.** UI gate, soft default on, admin can disable. No chain involvement. (D-2026-09-09-05)
 - [ ] **Post-approval signature re-verification + eligibility monitoring** in `Organization.sol`. Blocked in part on a real global-verification path. (D-2026-09-09-08)
 - [ ] **Retire `Voting.sol`** once confirmed unreferenced. (D-2026-09-09-10)

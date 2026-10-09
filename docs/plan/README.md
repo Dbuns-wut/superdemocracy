@@ -49,7 +49,7 @@ From the Constitution, Article XI:
 
 The code describes what *exists*. It does not outrank the vision. When code and a document disagree, record it in [../DECISION-LOG.md](../DECISION-LOG.md) and decide — never silently pick a side, and never delete working features to match a narrower document.
 
-Always preserve **democratic sovereignty** and **vote secrecy**.
+Always preserve **democratic sovereignty**. Blockchain votes default to auditor-visible records. A secret count is an organization choice, and the tally stays public either way.
 
 ## Local chain
 

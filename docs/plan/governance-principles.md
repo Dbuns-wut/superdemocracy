@@ -188,27 +188,32 @@ This is separate from exposing how an identifiable person voted.
 
 ---
 
-## 16. Vote Secrecy Is More Important Than Analytics
+## 16. Auditor-Visible Records, Not a Public Feed
 
-**Never sacrifice vote secrecy for auditability.**
+Blockchain votes default to an auditor-visible record so an online election can be checked the way a bank payment can be traced.
 
-Political trust can be destroyed if a system exposes a reliable relationship between a person and a secret ballot. A public mapping of identity, wallet, demographic profile, or other identifying metadata to vote choice is unacceptable for secret-ballot use cases.
+The people appointed to count may see who voted and how. The public sees the tally. A public mapping of identity to vote choice is not allowed.
 
-If useful research data cannot be collected without creating unacceptable privacy risk, do not collect it.
+An organization may turn the record off and run a secret count. That count does not keep a person-to-choice link, and it is harder to prove honest. Where law requires a secret ballot, that law controls.
+
+Research and analytics must not create an extra public or recoverable identity-to-vote record beyond the mode the organization chose.
 
 ---
 
-## 17. Auditability Must Not Become Surveillance
+## 17. Counting Is a Trusted Appointment, Not Surveillance of Everyone
 
-A trustworthy election should be verifiable without requiring the public to know how each individual voted.
+The counter is whoever the organization appoints to count, using the same kind of standard already used for people who count paper ballots.
+
+A trustworthy election publishes the tally without letting the public read each ballot.
 
 The system should separate:
 
 1. **Identity** — whether a person is eligible;
-2. **Ballot** — the political choice;
-3. **Research data** — only the aggregated or privacy-preserving information legitimately needed for learning.
+2. **Ballot** — the political choice, visible to the appointed counter when auditor visibility is on;
+3. **Tally** — the public result;
+4. **Research data** — only the aggregated information legitimately needed for learning.
 
-Long-term cryptographic design should pursue end-to-end verifiability, anonymous or selective credentials, coercion resistance, and independent verification without turning political participation into a permanent surveillance record.
+Leaking or selling the person-to-choice record should be punished. The software keeps that record off the public tally and writes down who opened it.
 
 ---
 

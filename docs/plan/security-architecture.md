@@ -1,9 +1,11 @@
 # SUPERDEMOCRACY — SECURITY ARCHITECTURE
 
 ## Security Thesis
-**Never sacrifice vote secrecy for auditability.**
+Blockchain votes default to auditor-visible records. The appointed counter can see who voted how. The public cannot.
 
-The objective is a system that can be independently verified without creating a public mapping between a person and their vote.
+An organization may turn that record off. A secret count keeps no person-to-choice link and is harder to prove honest.
+
+The objective is a tally anyone can see, plus a person-to-choice record that exists only for the appointed counter when the organization has left auditor visibility on.
 
 ## Threat Model
 The architecture must consider:
@@ -61,7 +63,7 @@ The platform must not expose a public queryable relationship between:
 - demographic profile and vote
 - delegate and historical vote
 
-Removing a name is not sufficient if other metadata can reconstruct identity.
+When auditor visibility is on, the appointed counter may read that relationship. Nobody else may. Removing a name is not sufficient if other metadata can reconstruct identity for the public.
 
 ## End-to-End Verification
 The target is not simply “the blockchain says a transaction happened.” Voters should eventually be able to obtain meaningful evidence that their ballot was included and counted correctly without gaining a transferable proof that reveals their vote to another person.
@@ -69,7 +71,7 @@ The target is not simply “the blockchain says a transaction happened.” Voter
 This is essential for both auditability and coercion resistance.
 
 ## Raw Ballots vs Tallies
-Store raw ballots as the durable record. Keep tally logic separate so future methods can operate over preserved ballots.
+Store sealed ballots as the durable record when auditor visibility is on. Keep tally logic separate so the public result does not require publishing each choice. A secret count does not store the choice with the voter.
 
 Do not implement complex ranked-choice or other tally algorithms inside the basic vote transaction.
 

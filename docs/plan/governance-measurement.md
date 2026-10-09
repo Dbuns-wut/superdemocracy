@@ -284,7 +284,7 @@ Superdemocracy should not invent universal policy-success metrics for organizati
 
 Measurement shall not undermine vote secrecy.
 
-For secret ballots, feedback and analytics should be designed so that useful aggregate learning does not create a recoverable identity-to-vote record.
+For secret counts, feedback and analytics should be designed so that useful aggregate learning does not create a recoverable identity-to-vote record. Auditor-visible votes already keep that record for the appointed counter; analytics must not copy it into a public or research feed.
 
 If a desired metric cannot be collected safely, the metric should be reduced, aggregated, redesigned, or omitted.
 

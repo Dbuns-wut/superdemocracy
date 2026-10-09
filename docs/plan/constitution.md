@@ -204,13 +204,21 @@ They are separate from measuring whether the democratic decision process itself 
 
 Superdemocracy shall be capable of operating in accordance with the applicable laws and governing requirements of the organization using it.
 
-## Section 2. Secret Ballot Is the Default
+## Section 2. Auditor-Visible Ballots Are the Blockchain Default
 
-For voting confidentiality, the Superdemocracy default is total secrecy of individual vote choice, comparable to the secret ballot used in ordinary elections.
+For blockchain votes, the Superdemocracy default is an auditor-visible record.
 
-Where secrecy is required, vote secrecy shall not be sacrificed merely to make auditing easier.
+The people appointed to count ballots — appointed the same way a jurisdiction appoints the people who count paper ballots — may see who voted and how they voted. Everyone else sees the tally, not the person-to-choice link.
 
-Identity, eligibility, and ballot choice should remain separated so that proving a person's right to participate does not unnecessarily reveal how that person voted.
+An organization may turn that record off. A secret count does not keep a recoverable link between a person and their choice. That count is harder to prove honest.
+
+Where law requires a secret ballot, the organization follows that law.
+
+A voter receives confirmation that the ballot was accepted and counted, not a shareable proof of how they voted.
+
+Leaking or selling an auditor-visible record is a serious breach. An organization that turns the record on should pair it with a real penalty for sharing that information with the public.
+
+This choice is recorded in the decision log. It replaces an earlier draft that made total secrecy the default.
 
 ## Section 3. Administrators Shall Not Secretly Control Ballots
 

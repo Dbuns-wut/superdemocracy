@@ -255,9 +255,11 @@ If no applicable Superdemocracy protocol exists, authority falls back to the org
 
 ## 10. SECURITY: THE NON-NEGOTIABLE PART
 
-**Never sacrifice vote secrecy for auditability.**
+**Blockchain votes default to auditor-visible records. The public does not see who voted how.**
 
-The target is an end-to-end verifiable, privacy-preserving, coercion-resistant voting system. Blockchain is one component.
+The appointed counter can check each ballot against the person who cast it. The tally stays public. An organization may turn the record off. A secret count does not keep that link and is harder to prove honest. Where law requires a secret ballot, that law controls.
+
+The target is a checkable voting system. Blockchain is one component.
 
 The guiding model combines:
 - the layered cybersecurity philosophy of online financial systems
@@ -271,7 +273,7 @@ The guiding model combines:
 The platform should be designed so that compromising one component does not automatically compromise the election.
 
 ### Identity / Ballot Separation
-Identity establishes eligibility. The ballot records the political choice. These must not become a public, linkable identity-to-vote record.
+Identity establishes eligibility. The ballot records the political choice. These must not become a public, linkable identity-to-vote record. When auditor visibility is on, the appointed counter may hold that link. The public still sees only the tally.
 
 Long-term tools may include anonymous credentials, commitments, zero-knowledge proofs, selective disclosure, mixing, threshold cryptography, secure multi-party computation, end-to-end verification, and coercion resistance.
 
@@ -604,7 +606,7 @@ Local Anvil account files and other dev-only credentials must never be committed
 
 **Preserve historical ballots.**
 
-**Never sacrifice vote secrecy for auditability.**
+**Blockchain votes default to auditor-visible records. Do not publish who voted how.**
 
 **Rules, Data, and Experience remain separate.**
 
