@@ -83,6 +83,15 @@ export async function migrate(): Promise<void> {
 
       CREATE INDEX IF NOT EXISTS idx_community_votes_org_id ON community_votes (org_id);
 
+      ALTER TABLE community_votes
+        ADD COLUMN IF NOT EXISTS auditor_visible BOOLEAN NOT NULL DEFAULT TRUE;
+
+      CREATE TABLE IF NOT EXISTS community_vote_participation (
+        vote_id TEXT NOT NULL,
+        voter_id TEXT NOT NULL,
+        PRIMARY KEY (vote_id, voter_id)
+      );
+
       CREATE TABLE IF NOT EXISTS community_ballots (
         vote_id TEXT NOT NULL,
         voter_id TEXT NOT NULL,

@@ -15,6 +15,7 @@ import { abi as organizationAbi } from "@/abis/Organization.json";
 import { PetitionCard } from "@/components/PetitionCard";
 import { OrgItemShareButton } from "@/components/OrgItemShareButton";
 import { OrganizationAddressProvider } from "@/contexts/OrganizationAddressContext";
+import { AuditorVisibilityCard } from "@/components/AuditorVisibilityCard";
 import { useOrgShortcutIcons } from "@/hooks/useOrgShortcutIcons";
 
 /** Spans for “no deadline” / open-ended polls and votes. */
@@ -3898,6 +3899,15 @@ export default function OrgPage() {
                 </div>
               </div>
             )}
+            <AuditorVisibilityCard
+              isAdmin={isAdmin}
+              orgAddress={orgAddr}
+              offchainId={offchainId ?? undefined}
+              offchainOrg={offchainOrg}
+              userAddress={userAddr ?? undefined}
+              signMessageAsync={signMessageAsync}
+              onCommunityOrg={setOffchainOrg}
+            />
             <div className="border border-zinc-200 p-6 rounded bg-zinc-50">
               <h3 className="text-lg mb-2">Voting eligibility policy</h3>
               <p className="text-sm text-zinc-700">

@@ -25,6 +25,7 @@ import type {
 const DATA_DIR = path.join(process.cwd(), "data")
 const VOTES_FILE = path.join(DATA_DIR, "community-votes.json")
 const BALLOTS_FILE = path.join(DATA_DIR, "community-vote-ballots.json")
+const PARTICIPATION_FILE = path.join(DATA_DIR, "community-vote-participation.json")
 
 type BallotsByVote = Record<string, Array<StoredBallot | Ballot>>
 
@@ -130,6 +131,8 @@ function rowToVote(row: {
   verificationApprovals?: VerificationApproval[] | unknown
   created_at?: number
   createdAt?: number
+  auditor_visible?: boolean
+  auditorVisible?: boolean
 }): CommunityVote {
   const vote: CommunityVote = {
     id: row.id,
@@ -144,6 +147,7 @@ function rowToVote(row: {
       return Array.isArray(raw) ? raw.map(String) : []
     })(),
     allowVoteChange: Boolean(row.allow_vote_change ?? row.allowVoteChange),
+    auditorVisible: (row.auditor_visible ?? row.auditorVisible) !== false,
     status: normalizeStatus(row.status),
     verificationApprovals: Array.isArray(row.verification_approvals ?? row.verificationApprovals)
       ? (row.verification_approvals ?? row.verificationApprovals) as VerificationApproval[]
@@ -213,8 +217,9 @@ async function pgInsertVote(vote: CommunityVote): Promise<void> {
     await client.query(
       `INSERT INTO community_votes (
         id, org_id, title, description, options, start_time, end_time,
-        eligible_voters, allow_vote_change, status, verification_approvals, created_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        eligible_voters, allow_vote_change, status, verification_approvals, created_at,
+        auditor_visible
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [
         vote.id,
         vote.orgId,
@@ -228,6 +233,7 @@ async function pgInsertVote(vote: CommunityVote): Promise<void> {
         vote.status,
         JSON.stringify(vote.verificationApprovals),
         vote.createdAt,
+        vote.auditorVisible !== false,
       ]
     )
   })
@@ -328,6 +334,12 @@ export async function createCommunityVote(input: {
         .filter((v): v is string => !!v)
     : []
 
+  let auditorVisible = true
+  if (isOffchainOrgId(orgId)) {
+    const co = await getCommunityOrgById(orgId)
+    auditorVisible = co?.auditorVisibleBallots !== false
+  }
+
   const vote: CommunityVote = {
     id: randomUUID(),
     orgId,
@@ -338,6 +350,7 @@ export async function createCommunityVote(input: {
     endTime,
     eligibleVoters,
     allowVoteChange: !!input.allowVoteChange,
+    auditorVisible,
     status: "active",
     verificationApprovals: [],
     createdAt: Date.now(),
@@ -385,15 +398,22 @@ export async function castCommunityBallot(input: {
   const valid = choices.every((c) => Number.isInteger(c) && c >= 0 && c < vote.options.length)
   if (!valid) return { ok: false, error: "invalid choices", status: 400 }
 
-  const ballots = hasDatabase() ? await pgReadBallots(voteId) : await jsonReadBallots(voteId)
-  const existing = ballots.find((b) => b.voterId.toLowerCase() === voterId.toLowerCase())
-  if (existing && !vote.allowVoteChange) {
-    return { ok: false, error: "vote change disabled", status: 409 }
+  const linked = vote.auditorVisible !== false
+  if (!linked) {
+    if (await hasParticipated(voteId, voterId)) {
+      return { ok: false, error: "vote already counted", status: 409 }
+    }
+  } else {
+    const ballots = hasDatabase() ? await pgReadBallots(voteId) : await jsonReadBallots(voteId)
+    const existing = ballots.find((b) => b.voterId.toLowerCase() === voterId.toLowerCase())
+    if (existing && !vote.allowVoteChange) {
+      return { ok: false, error: "vote change disabled", status: 409 }
+    }
   }
 
   const encrypted = encryptBallotChoices(choices)
   const stored: StoredBallot = {
-    voterId,
+    voterId: linked ? voterId : `anon:${randomUUID()}`,
     ciphertext: encrypted.ciphertext,
     iv: encrypted.iv,
     authTag: encrypted.authTag,
@@ -402,11 +422,50 @@ export async function castCommunityBallot(input: {
 
   if (hasDatabase()) {
     await pgUpsertStoredBallot(voteId, stored)
+    if (!linked) await pgMarkParticipated(voteId, voterId)
   } else {
     await jsonUpsertStoredBallot(voteId, stored)
+    if (!linked) await jsonMarkParticipated(voteId, voterId)
   }
 
   return { ok: true, receipt: { voterId, timestamp: now } }
+}
+
+async function hasParticipated(voteId: string, voterId: string): Promise<boolean> {
+  if (hasDatabase()) return pgHasParticipated(voteId, voterId)
+  const map = await readJson<Record<string, string[]>>(PARTICIPATION_FILE, {})
+  const rows = map[voteId] ?? []
+  return rows.some((v) => v.toLowerCase() === voterId.toLowerCase())
+}
+
+async function jsonMarkParticipated(voteId: string, voterId: string): Promise<void> {
+  const map = await readJson<Record<string, string[]>>(PARTICIPATION_FILE, {})
+  const rows = map[voteId] ?? []
+  if (!rows.some((v) => v.toLowerCase() === voterId.toLowerCase())) rows.push(voterId)
+  map[voteId] = rows
+  await writeJson(PARTICIPATION_FILE, map)
+}
+
+async function pgHasParticipated(voteId: string, voterId: string): Promise<boolean> {
+  await ensureMigrated()
+  return withDbClient(async (client) => {
+    const res = await client.query(
+      `SELECT 1 FROM community_vote_participation WHERE vote_id = $1 AND LOWER(voter_id) = LOWER($2)`,
+      [voteId, voterId]
+    )
+    return (res.rowCount ?? 0) > 0
+  })
+}
+
+async function pgMarkParticipated(voteId: string, voterId: string): Promise<void> {
+  await ensureMigrated()
+  await withDbClient(async (client) => {
+    await client.query(
+      `INSERT INTO community_vote_participation (vote_id, voter_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [voteId, voterId]
+    )
+  })
 }
 
 async function buildPublicView(
@@ -520,6 +579,9 @@ export async function listAuditorBallots(input: {
     : (await jsonReadVotes()).find((v) => v.id === id) ?? null
   if (!vote) return { ok: false, error: "vote not found", status: 404 }
 
+  if (vote.auditorVisible === false) {
+    return { ok: false, error: "this vote does not keep a person-to-choice record", status: 403 }
+  }
   if (await isVoteOrgAdmin(vote.orgId, auditor)) {
     return { ok: false, error: "org admin cannot reveal ballots", status: 403 }
   }
@@ -531,7 +593,9 @@ export async function listAuditorBallots(input: {
   }
 
   const stored = hasDatabase() ? await pgReadBallots(id) : await jsonReadBallots(id)
-  const ballots = stored.map(decryptStoredBallot)
+  const ballots = stored
+    .map(decryptStoredBallot)
+    .filter((b) => !b.voterId.startsWith("anon:"))
   await appendBallotAudit({
     voteId: id,
     actor: auditor,

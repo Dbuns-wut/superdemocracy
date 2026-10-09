@@ -13,6 +13,12 @@ export type CommunityOrg = {
    * during an open verification window. Must differ from creatorAddress.
    */
   auditorAddress?: string | null
+  /**
+   * When true (the default), appointed counters can see who voted how.
+   * When false, new votes in this organization do not keep that link.
+   * Missing means on, matching blockchain votes.
+   */
+  auditorVisibleBallots?: boolean
   createdAt: number
   memberCount?: number
   /** Present when listing orgs with `?viewer=` (home page). */

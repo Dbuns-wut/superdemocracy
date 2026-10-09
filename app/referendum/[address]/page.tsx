@@ -8,9 +8,12 @@ import {
   useReadContract,
   useAccount,
   useConnect,
+  usePublicClient,
+  useSignMessage,
   useWriteContract,
   useBlockNumber,
 } from "wagmi"
+import { signOffchainAction } from "@/lib/sign-offchain-action"
 import { abi as referendumAbi } from "@/abis/Referendum.json"
 import { safeAddress, shortAddress } from "@/lib/address"
 import { waitForTransactionReceipt } from "wagmi/actions"
@@ -35,6 +38,11 @@ export default function ReferendumPage() {
   const [perspectives, setPerspectives] = React.useState<Perspective[]>([])
   const [perspectivesLoading, setPerspectivesLoading] = React.useState(false)
   const [ackPending, setAckPending] = React.useState(false)
+  const [accepted, setAccepted] = React.useState(false)
+  const [voteError, setVoteError] = React.useState("")
+  const [publishError, setPublishError] = React.useState("")
+  const [secretCounts, setSecretCounts] = React.useState<number[] | null>(null)
+  const [publishing, setPublishing] = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
@@ -76,12 +84,44 @@ export default function ReferendumPage() {
     blockNumber,
   })
 
-  const { data: ballot } = useReadContract({
+  const { data: voterHasVoted } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: referendumAbi,
-    functionName: "ballots",
-    args: [address, 0],
+    functionName: "hasVoted",
+    args: address ? [address] : undefined,
     query: { enabled: !!contractAddress && !!address },
+    blockNumber,
+  })
+
+  const { data: auditorVisible } = useReadContract({
+    address: contractAddress,
+    abi: referendumAbi,
+    functionName: "auditorVisible",
+    query: { enabled: !!contractAddress },
+    blockNumber,
+  })
+
+  const { data: referendumOrg } = useReadContract({
+    address: contractAddress,
+    abi: referendumAbi,
+    functionName: "organization",
+    query: { enabled: !!contractAddress },
+    blockNumber,
+  })
+
+  const { data: ballotCounter } = useReadContract({
+    address: referendumOrg as `0x${string}` | undefined,
+    abi: [
+      {
+        type: "function",
+        name: "ballotAuditor",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [{ name: "", type: "address" }],
+      },
+    ],
+    functionName: "ballotAuditor",
+    query: { enabled: !!referendumOrg },
     blockNumber,
   })
 
@@ -115,6 +155,8 @@ export default function ReferendumPage() {
 
   const { connect, connectors } = useConnect()
   const { writeContractAsync } = useWriteContract()
+  const { signMessageAsync } = useSignMessage()
+  const publicClient = usePublicClient()
 
   const detailTuple = details as readonly [string, string, string[]] | undefined
   const title = detailTuple?.[0]
@@ -122,21 +164,73 @@ export default function ReferendumPage() {
   const options = detailTuple?.[2]
 
   const handleVote = async (i: number) => {
-    if (!contractAddress || !options) return
+    if (!contractAddress || !options || !address) return
     if (!hasAcked) {
       setPerspectivesOpen(true)
       return
     }
     setIsVoting(true)
+    setVoteError("")
+    setAccepted(false)
     try {
-      const ranking = options.map((_: string, index: number) => (index === i ? 0 : 1))
+      if (auditorVisible === false) {
+        const hash = await writeContractAsync({
+          address: contractAddress,
+          abi: referendumAbi,
+          functionName: "vote",
+          args: ["0x"],
+        })
+        await waitForTransactionReceipt(config, { hash })
+        const signed = await signOffchainAction({
+          action: "chain.ballot.secret",
+          resourceId: contractAddress,
+          voterId: address,
+          choices: [i],
+          signMessageAsync,
+        })
+        const res = await fetch("/api/chain-ballots/secret", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            referendum: contractAddress,
+            choices: [i],
+            voterId: address,
+            ...signed,
+          }),
+        })
+        if (!res.ok && res.status !== 409) {
+          const data = await res.json().catch(() => ({}))
+          setVoteError(
+            typeof data.error === "string"
+              ? data.error
+              : "Participation was recorded, but the choice was not stored."
+          )
+          return
+        }
+        setAccepted(true)
+        return
+      }
+
+      const sealRes = await fetch("/api/chain-ballots/seal", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ choices: [i] }),
+      })
+      const sealedBody = await sealRes.json().catch(() => ({}))
+      if (!sealRes.ok || typeof sealedBody.sealed !== "string") {
+        setVoteError("Could not seal the ballot.")
+        return
+      }
       const hash = await writeContractAsync({
         address: contractAddress,
         abi: referendumAbi,
         functionName: "vote",
-        args: [ranking],
+        args: [sealedBody.sealed],
       })
       await waitForTransactionReceipt(config, { hash })
+      setAccepted(true)
+    } catch {
+      setVoteError("Vote was not submitted.")
     } finally {
       setIsVoting(false)
     }
@@ -158,22 +252,115 @@ export default function ReferendumPage() {
     }
   }
 
-  const currentVote =
-    ballot !== undefined && options ? options[Number(ballot)] : null
-
   const { data: optionVoteReads } = useReadContracts({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     contracts: (options?.map((_: string, i: number) => ({
       address: contractAddress!,
       abi: referendumAbi,
       functionName: "optionVotes" as const,
       args: [i] as const,
-    })) ?? []) as any,
+    })) ?? []) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     query: { enabled: !!contractAddress && !!options?.length },
   })
 
   const voteCounts = optionVoteReads?.map((r) => Number(r.result ?? 0)) ?? []
-  const totalVotesCount = voteCounts.reduce((a, b) => a + b, 0)
+  const publishedTotal = voteCounts.reduce((a, b) => a + b, 0)
+  const displayCounts =
+    auditorVisible === false && secretCounts ? secretCounts : voteCounts
+  const displayTotal = displayCounts.reduce((a, b) => a + b, 0)
+  const countNotPublished =
+    auditorVisible !== false && Number(totalVotes ?? 0) > 0 && publishedTotal === 0
+  const isCounter =
+    !!address &&
+    !!ballotCounter &&
+    address.toLowerCase() === String(ballotCounter).toLowerCase()
+
+  React.useEffect(() => {
+    if (!contractAddress || auditorVisible !== false || !options?.length) return
+    let cancelled = false
+    ;(async () => {
+      const res = await fetch(
+        `/api/chain-ballots/tally?referendum=${encodeURIComponent(contractAddress)}&optionCount=${options.length}`
+      )
+      const data = await res.json().catch(() => ({}))
+      if (!cancelled && res.ok && Array.isArray(data.counts)) {
+        setSecretCounts(data.counts.map((n: unknown) => Number(n)))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [contractAddress, auditorVisible, options])
+
+  const publishCount = async () => {
+    if (!contractAddress || !address || !publicClient || !options?.length) return
+    setPublishing(true)
+    setPublishError("")
+    try {
+      const logs = await publicClient.getLogs({
+        address: contractAddress,
+        event: {
+          type: "event",
+          name: "VoteCast",
+          inputs: [{ name: "voter", type: "address", indexed: true }],
+        },
+        fromBlock: 0n,
+        toBlock: "latest",
+      })
+      const voters = [
+        ...new Set(
+          logs
+            .map((log) => String((log as { args?: { voter?: string } }).args?.voter ?? ""))
+            .filter((v) => v.startsWith("0x"))
+        ),
+      ]
+      const counts = options.map(() => 0)
+      for (const voter of voters) {
+        const sealed = await publicClient.readContract({
+          address: contractAddress,
+          abi: referendumAbi,
+          functionName: "auditorBallot",
+          args: [voter as `0x${string}`],
+          account: address,
+        })
+        const signed = await signOffchainAction({
+          action: "chain.ballot.open",
+          resourceId: contractAddress,
+          voterId: address,
+          signMessageAsync,
+        })
+        const res = await fetch("/api/chain-ballots/open", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            referendum: contractAddress,
+            sealed,
+            voterId: address,
+            ...signed,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || !Array.isArray(data.choices)) {
+          setPublishError(
+            typeof data.error === "string" ? data.error : "Could not open a ballot to publish the count."
+          )
+          return
+        }
+        const choice = Number(data.choices[0])
+        if (Number.isInteger(choice) && choice >= 0 && choice < counts.length) counts[choice] += 1
+      }
+      const hash = await writeContractAsync({
+        address: contractAddress,
+        abi: referendumAbi,
+        functionName: "publishTally",
+        args: [counts],
+      })
+      await waitForTransactionReceipt(config, { hash })
+    } catch {
+      setPublishError("Could not publish the count.")
+    } finally {
+      setPublishing(false)
+    }
+  }
 
   if (!mounted) return null
 
@@ -247,7 +434,7 @@ export default function ReferendumPage() {
                 }}
                 className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
               >
-                {currentVote ? "Change vote" : "Vote"}
+                {voterHasVoted && auditorVisible !== false ? "Vote again" : "Vote"}
               </button>
             )}
           </div>
@@ -256,21 +443,42 @@ export default function ReferendumPage() {
         <div className="mt-4 flex items-start gap-16">
           <div>
             <h3 className="font-semibold">Results</h3>
-            <div className="mt-4 flex items-end gap-6">
-              {options?.map((option: string, i: number) => (
-                <VoteBar
-                  key={i}
-                  label={option}
-                  value={voteCounts[i] ?? 0}
-                  max={totalVotesCount}
-                  color={i === 0 ? "bg-green-400" : "bg-red-400"}
-                />
-              ))}
-            </div>
+            {countNotPublished ? (
+              <p className="mt-2 text-sm text-zinc-600">Count not published yet.</p>
+            ) : (
+              <div className="mt-4 flex items-end gap-6">
+                {options?.map((option: string, i: number) => (
+                  <VoteBar
+                    key={i}
+                    label={option}
+                    value={displayCounts[i] ?? 0}
+                    max={displayTotal}
+                    color={i === 0 ? "bg-green-400" : "bg-red-400"}
+                  />
+                ))}
+              </div>
+            )}
+            {isCounter && auditorVisible !== false && (
+              <button
+                type="button"
+                onClick={() => void publishCount()}
+                disabled={publishing}
+                className="mt-3 rounded bg-zinc-800 px-3 py-2 text-sm text-white hover:bg-zinc-900 disabled:opacity-50"
+              >
+                {publishing ? "Publishing…" : "Publish count"}
+              </button>
+            )}
+            {publishError && <p className="mt-2 text-sm text-red-700">{publishError}</p>}
           </div>
 
           <div className="flex flex-col">
-            {Boolean(votingOpen && readableStatus === "Active" && address && hasAcked) && (
+            {Boolean(
+              votingOpen &&
+                readableStatus === "Active" &&
+                address &&
+                hasAcked &&
+                !(voterHasVoted && auditorVisible === false)
+            ) && (
               <div className="mt-4 space-y-2">
                 {options?.map((option: string, i: number) => (
                   <button
@@ -279,8 +487,8 @@ export default function ReferendumPage() {
                     onClick={() => void handleVote(i)}
                     disabled={isVoting}
                     className={`block rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 ${
-                      currentVote === option ? "opacity-50" : ""
-                    } ${isVoting ? "cursor-not-allowed opacity-40" : ""}`}
+                      isVoting ? "cursor-not-allowed opacity-40" : ""
+                    }`}
                   >
                     {option}
                   </button>
@@ -290,7 +498,10 @@ export default function ReferendumPage() {
           </div>
         </div>
 
-        {currentVote && <div className="mt-2 font-semibold">Your vote: {currentVote}</div>}
+        {(voterHasVoted || accepted) && !voteError && (
+          <div className="mt-2 font-semibold">Vote accepted and counted.</div>
+        )}
+        {voteError && <div className="mt-2 text-sm text-red-700">{voteError}</div>}
 
         <div className="mt-1 text-sm text-zinc-600">
           Ballots: {totalVotes !== undefined ? Number(totalVotes) : "…"}

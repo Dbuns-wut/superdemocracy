@@ -35,6 +35,31 @@ export function encryptBallotChoices(choices: number[]): EncryptedBallotPayload 
   }
 }
 
+/** Packed `iv || authTag || ciphertext` for on-chain storage. The choice is not plaintext. */
+export function sealBallotChoices(choices: number[]): `0x${string}` {
+  const payload = encryptBallotChoices(choices)
+  const packed = Buffer.concat([
+    Buffer.from(payload.iv, "base64"),
+    Buffer.from(payload.authTag, "base64"),
+    Buffer.from(payload.ciphertext, "base64"),
+  ])
+  return `0x${packed.toString("hex")}`
+}
+
+export function openSealedBallot(sealed: string): number[] {
+  const hex = sealed.startsWith("0x") ? sealed.slice(2) : sealed
+  if (!/^[0-9a-fA-F]*$/.test(hex) || hex.length % 2 !== 0) {
+    throw new Error("sealed ballot is not hex")
+  }
+  const buf = Buffer.from(hex, "hex")
+  if (buf.length < IV_BYTES + 16) throw new Error("sealed ballot is too short")
+  return decryptBallotChoices({
+    iv: buf.subarray(0, IV_BYTES).toString("base64"),
+    authTag: buf.subarray(IV_BYTES, IV_BYTES + 16).toString("base64"),
+    ciphertext: buf.subarray(IV_BYTES + 16).toString("base64"),
+  })
+}
+
 export function decryptBallotChoices(payload: EncryptedBallotPayload): number[] {
   const key = resolveKeyMaterial()
   const iv = Buffer.from(payload.iv, "base64")

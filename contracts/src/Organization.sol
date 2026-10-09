@@ -23,6 +23,14 @@ contract Organization {
     IIdentityVerifier public identityVerifier;
     address public immutable referendumFactory;
 
+    /// @notice Blockchain votes default to auditor-visible records.
+    /// Individual choices stay available to the appointed counter, not the public.
+    bool public auditorVisibleBallots = true;
+
+    /// @notice Wallet appointed to count ballots, the same kind of appointment used
+    /// for the people who count paper ballots. Empty until the organization sets it.
+    address public ballotAuditor;
+
     mapping(address => bool) public members;
     mapping(address => bool) public admins;
      
@@ -150,6 +158,17 @@ contract Organization {
         require(members[user], "Must be member first");
         admins[user] = true;
         emit AdminAdded(user);
+    }
+
+    /// @notice Applies to referendums launched after this call. An open referendum keeps the mode it started with.
+    function setAuditorVisibleBallots(bool enabled) external onlyOrgAdmin {
+        auditorVisibleBallots = enabled;
+    }
+
+    /// @notice Appoint or replace the counter. Read live by referendums so a new counter can finish a count.
+    function setBallotAuditor(address auditor) external onlyOrgAdmin {
+        require(auditor != address(0), "Counter required");
+        ballotAuditor = auditor;
     }
 
     function isMember(address user) external view returns (bool) {

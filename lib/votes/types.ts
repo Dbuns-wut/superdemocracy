@@ -17,6 +17,8 @@ export type CommunityVote = {
   endTime: number
   eligibleVoters: string[]
   allowVoteChange: boolean
+  /** Snapshotted from the organization at creation. Missing on older votes means on. */
+  auditorVisible?: boolean
   status: VoteStatus
   verificationApprovals: VerificationApproval[]
   createdAt: number

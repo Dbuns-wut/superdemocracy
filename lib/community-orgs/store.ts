@@ -221,6 +221,7 @@ export async function createCommunityOrg(input: {
     membershipMode: input.membershipMode,
     creatorAddress,
     auditorAddress: null,
+    auditorVisibleBallots: true,
     createdAt: Date.now(),
   }
   const orgs = await readOrgs()
@@ -278,6 +279,35 @@ export async function setCommunityOrgAuditor(input: {
   }
 
   const next: CommunityOrg = { ...org, auditorAddress: auditor }
+  orgs[idx] = next
+  await writeOrgs(orgs)
+  const counts = await buildCommunityMemberCounts()
+  return { ok: true, org: { ...next, memberCount: counts[t] ?? 1 } }
+}
+
+/** Organization setting. Applies to votes created after the change. */
+export async function setCommunityOrgAuditorVisibility(input: {
+  orgId: string
+  adminAddress: string
+  auditorVisibleBallots: boolean
+}): Promise<{ ok: true; org: CommunityOrg } | { ok: false; error: string; status: number }> {
+  const t = input.orgId?.trim().toLowerCase()
+  if (!t) return { ok: false, error: "invalid org id", status: 400 }
+  const admin = normalizeCreator(input.adminAddress)
+  if (!admin) return { ok: false, error: "valid admin address required", status: 400 }
+  if (typeof input.auditorVisibleBallots !== "boolean") {
+    return { ok: false, error: "auditorVisibleBallots required", status: 400 }
+  }
+
+  const orgs = await readOrgs()
+  const idx = orgs.findIndex((o) => o.id.toLowerCase() === t)
+  if (idx < 0) return { ok: false, error: "org not found", status: 404 }
+  const org = orgs[idx]
+  if (org.creatorAddress.toLowerCase() !== admin.toLowerCase()) {
+    return { ok: false, error: "only the org admin can change ballot visibility", status: 403 }
+  }
+
+  const next: CommunityOrg = { ...org, auditorVisibleBallots: input.auditorVisibleBallots }
   orgs[idx] = next
   await writeOrgs(orgs)
   const counts = await buildCommunityMemberCounts()

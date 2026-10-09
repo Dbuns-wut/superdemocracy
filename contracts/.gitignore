@@ -2,6 +2,9 @@
 cache/
 out/
 
+# forge-std is installed locally with `forge install foundry-rs/forge-std`
+lib/
+
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/
