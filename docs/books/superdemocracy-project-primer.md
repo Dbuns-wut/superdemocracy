@@ -211,9 +211,7 @@ The long-term target is an:
 
 **end-to-end verifiable, privacy-preserving, coercion-resistant voting system.**
 
-The central privacy principle is absolute:
-
-**Never sacrifice vote secrecy for auditability.**
+An earlier draft of this primer said never to sacrifice vote secrecy for auditability. Superseded by decision-log entry 31, Blockchain Votes Default to Auditor-Visible Records (D-2026-10-09-01).
 
 Identity proves eligibility. The ballot records the political choice. Research data must remain separate and privacy-preserving.
 
@@ -384,7 +382,7 @@ If a contributor remembers only five things, remember these:
 1. **People remain sovereign.**
 2. **Make informed participation easy.**
 3. **Authority can be delegated, but it must remain accountable and revocable.**
-4. **Never sacrifice vote secrecy for auditability.**
+4. **Blockchain votes default to an auditor-visible record.** Superseded the earlier line in this list. See decision-log entry 31 (D-2026-10-09-01).
 5. **Build a system that can test, measure, learn, and improve.**
 
 Everything else is implementation.

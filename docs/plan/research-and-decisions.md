@@ -48,10 +48,9 @@ This document records why major design directions exist, what evidence informed 
 ## Decision 008 — No Social-Media Scraping
 **Decision:** Do not scrape social media to construct competence or prediction profiles.
 
-## Decision 009 — Vote Secrecy Is Absolute
-**Decision:** Never sacrifice vote secrecy for analytics or auditability.
+## Decision 009 — Removed
 
-**Why:** Loss of trust in vote secrecy can destroy the legitimacy of the entire platform.
+Superseded by decision-log entry 31, Blockchain Votes Default to Auditor-Visible Records (D-2026-10-09-01).
 
 ## Decision 010 — Identity / Ballot Separation
 **Decision:** Keep identity eligibility separate from ballot contents.
