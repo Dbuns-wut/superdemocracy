@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { listAuditorBallots } from "@/lib/votes/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -24,7 +24,7 @@ export async function GET(request: Request, context: RouteContext) {
   const expiresAt = Number(searchParams.get("expiresAt"))
   const signature = searchParams.get("signature")?.trim() ?? ""
 
-  const origin = new URL(request.url).origin
+  const origin = signedRequestOrigin(request)
   const auth = await verifySignedAction({
     action: "votes.audit",
     resourceId: voteId,

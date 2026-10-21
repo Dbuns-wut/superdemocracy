@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createPoll } from "@/lib/polls/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function POST(request: Request) {
   let body: unknown
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     startTime: Number(startTime),
     endTime: Number(endTime),
   }
-  const origin = new URL(request.url).origin
+  const origin = signedRequestOrigin(request)
   const auth = await verifySignedAction({
     action: "polls.create",
     resourceId: String(orgId ?? ""),

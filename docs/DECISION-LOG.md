@@ -37,6 +37,110 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 # DECISIONS
 
+## 37. Signup requires a password (D-2026-10-20-01)
+**Date:** 2026-10-20
+
+**Decision:** Creating an account asks for a password and does not open the app until that password is stored. The password is kept only as a scrypt hash. Sign-in checks that hash. A person can change it from Settings with their current password. This is the account people will later use when identification is checked. Uploading a driver's license or passport is not built, and this decision does not pretend that check exists.
+
+**Why:** Signup was letting a person in with only a name and email. The Chief Architect said an account has to be secure enough that a verified identity document could be trusted there later.
+
+**Status:** Accepted. Password gate is in place. Identity-document upload and verification are not.
+
+**Source:** Chief Architect, 2026-10-20.
+
+---
+
+## 36. The account follows the person (D-2026-10-16-01)
+**Date:** 2026-10-16
+
+**Decision:** A SuperDemocracy account belongs to the person, not to a device. The same account must work on different devices. What that person can do depends on the identification they have provided and had verified. No wallet install and no second signup (D-2026-09-25-01). This is not a claim that a government ID check exists yet.
+
+**Why:** The Chief Architect corrected the launch note. Saying the account is tied to one device described the current browser key, not the product. Capability is gated by verified identification, which can increase over time.
+
+**Status:** Accepted direction. Password sign-in is the account gate (D-2026-10-20-01). A government ID check is still not built. The vote key in the browser is still separate from that password.
+
+**Source:** Chief Architect, 2026-10-16.
+
+---
+
+## 35. In-app account, no browser extension (D-2026-09-25-01)
+**Date:** 2026-09-25
+
+**Decision:** Members sign in inside SuperDemocracy. The default account is created and kept on the device. A browser extension such as MetaMask is not required. An injected browser wallet may remain available for people who already use one, especially for on-chain organizations. This is not government-ID verification and it does not replace vote secrecy.
+
+**Why:** The Chief Architect does not want members, especially older people, to install a wallet extension. Sign-in should feel like part of the product: do it once on this device, then it is already there.
+
+**Status:** Accepted for sign-in inside the product, with no wallet extension. The part that keeps the account on one device is superseded by D-2026-10-16-01. First slice is still a key stored in the browser, used for the existing signed requests. Not a MetaMask Embedded product integration.
+
+**Source:** Chief Architect decision, 2026-09-25.
+
+---
+
+## 34. Post-Approval Re-Check Remaining Work (D-2026-09-16-03)
+**Date:** 2026-09-16
+
+**Decision:** Document remaining `Organization.sol` work. Do not fake government ID.
+
+**Remaining:**
+
+1. **After `approvePetition`:** re-check every signer unless globally verified. No real global-verification path exists, so today that means **every** signer (D-2026-09-09-08 caveat is benched). Drop signers who are no longer members or no longer verified; decrement `verifiedCount`; clear `hasSigned` for those addresses.
+2. **Eligibility monitoring:** when a signer dies, leaves the jurisdiction, or loses membership, remove the signature and recompute counts. Needs hooks on member removal / verification loss, and later a real identity provider for death/move. Not a cron invention in this slice.
+3. **Do not** treat per-org join approval (union card, etc.) as global verification.
+4. **Do not** ship a pretend government-ID uploader.
+
+Current code: `signPetition` increments `verifiedCount` once and does not re-check.
+
+**Status:** Accepted remaining-work record. Not implemented.
+
+**Source:** D-2026-09-09-08 + this implementation pass.
+
+---
+
+## 33. On-Chain Vote Secrecy Design (D-2026-09-16-02)
+**Date:** 2026-09-16
+
+> Superseded by 31. Blockchain Votes Default to Auditor-Visible Records (D-2026-10-09-01).
+
+**Decision:** Do **not** patch `Referendum.vote()` in this change. Design first, then change `vote()`, tally, ABI, and referendum UI together.
+
+**Problem:** Solidity storage and calldata are public. `mapping(address => uint256[]) public ballots` lets anyone read how an address ranked. `vote(uint256[] rankedChoices)` also publishes the ranking in the transaction. Making the mapping `private` does not hide it. On-chain first-choice counters updated inside `vote()` can also leak preference when combined with `VoteCast` timing.
+
+**Design (pending Chief Architect approval before any contract change):**
+
+1. **Stop sending rankings to the contract.** `vote()` should only record that an eligible, education-acknowledged member participated: `hasVoted`, `totalVotes`, `VoteCast(address indexed voter)` with no ranking.
+2. **Raw ballots stay encrypted off-chain**, same family as community votes (`lib/ballot-crypto`). Ordinary APIs return receipts without choices. Keep historical ciphertext versions if vote-change is allowed ? do not destroy ballot history.
+3. **Tally is a separate step**, not inside `vote()`. Do not update public `optionVotes` from a revealed first choice at cast time.
+4. **Optional on-chain commitment later:** `vote(bytes32 commit)` where `commit = keccak256(abi.encode(ranking, salt))`. A commitment is still identity-linked; it is not a secret ballot by itself. Prefer encrypted off-chain storage plus an optional Merkle root of ciphertext hashes anchored after close for tamper-evidence.
+5. **ABI:** remove public `ballots(address)`; keep `acknowledgeEducation` / `hasAcknowledgedEducation`; `vote()` with no ranking (or commit only); drop in-tx ranking tallies; optional `anchorTally(bytes32 merkleRoot, uint256[] counts)` once after `endTime`, callable by the organization ? counts are aggregates, not per-voter rankings.
+6. **UI:** stop reading `ballots(address)` for "Your vote". Show a private receipt instead. Education gate unchanged.
+7. **Out of scope here:** mixers, ZK, coercion-resistant E2E. Those are future. Community orgs already closer to Article VI.
+
+**Status:** Superseded by decision 31. Auditor-visible sealed ballots shipped. This design was not the one built.
+
+**Source:** Constitution Article VI section 2, D-2026-09-09-07, security architecture, this audit.
+
+---
+
+## 32. Perspectives Maps Onto The Three Information Levels (D-2026-09-16-01)
+**Date:** 2026-09-16
+
+**Decision:** **Perspectives** remains the member-facing name. Inside that panel, content is ordered as:
+
+1. **Quick Debrief** ? what / why / known / disputed / uncertain
+2. **Pros vs Cons** ? existing For/Against (or other) perspective cards
+3. **Evidence**
+4. **Sources**
+
+This is the north-star three-level architecture inside the existing name. It is not a third information architecture and does not rename the tab.
+
+**Why:** D-2026-09-09-06 required mapping without losing "Perspectives". The running app now shows that mapping so it can be confirmed.
+
+**Status:** Accepted as the implementation mapping; confirm visually.
+
+**Source:** Chief Architect decision D-2026-09-09-06 + this implementation.
+
+---
+
 ## 31. Blockchain Votes Default to Auditor-Visible Records (D-2026-10-09-01)
 **Date:** 2026-10-09
 
@@ -128,7 +232,7 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 **Decision:** `contracts/src/Voting.sol` (the original toy poll: public counts, no identity, no education, no ranked ballots) is kept so nothing breaks but is not the direction and must not be extended. The handoff documents define what is being built instead. Removal can be scheduled once nothing references it.
 
-**Status:** Accepted.
+**Status:** Accepted. File removed; nothing referenced it.
 
 **Source:** Chief Architect decision.
 

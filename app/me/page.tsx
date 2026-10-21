@@ -4,25 +4,53 @@ export const fetchCache = "force-no-store"
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { useAccount, useConnect, useSignMessage } from "wagmi"
+import { useAccount, useSignMessage } from "wagmi"
 import { AppSidebar } from "@/components/AppSidebar"
-import { shortAddress } from "@/lib/address"
+import { SaveMorphButton } from "@/components/SaveMorphButton"
+import { profilePayload } from "@/lib/identity/profile-payload"
+import { writeLocalEmail } from "@/lib/identity/local-email"
 import { signOffchainAction } from "@/lib/sign-offchain-action"
 import type { IdentityProfile } from "@/lib/identity/types"
 
-export default function ManageMyIdPage() {
+function readPhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error("Could not read that photo."))
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const size = 160
+        const canvas = document.createElement("canvas")
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          reject(new Error("Could not read that photo."))
+          return
+        }
+        const scale = Math.max(size / img.width, size / img.height)
+        const w = img.width * scale
+        const h = img.height * scale
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
+        resolve(canvas.toDataURL("image/jpeg", 0.72))
+      }
+      img.onerror = () => reject(new Error("Could not read that photo."))
+      img.src = String(reader.result ?? "")
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+export default function MyIdPage() {
   const { address, isConnected } = useAccount()
-  const { connect, connectors, isPending: connectPending } = useConnect()
   const { signMessageAsync } = useSignMessage()
 
-  const [profile, setProfile] = useState<IdentityProfile | null>(null)
   const [displayName, setDisplayName] = useState("")
-  const [avatarUrl, setAvatarUrl] = useState("")
+  const [email, setEmail] = useState("")
+  const [photo, setPhoto] = useState("")
   const [bio, setBio] = useState("")
   const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
 
   const loadProfile = useCallback(async (addr: string) => {
     setLoading(true)
@@ -31,16 +59,17 @@ export default function ManageMyIdPage() {
       const res = await fetch(`/api/me?address=${encodeURIComponent(addr)}`)
       const data = await res.json()
       if (!res.ok) {
-        setError(typeof data?.error === "string" ? data.error : "Could not load profile")
+        setError(typeof data?.error === "string" ? data.error : "Could not load your profile")
         return
       }
       const p = data.profile as IdentityProfile | null
-      setProfile(p)
       setDisplayName(p?.displayName ?? "")
-      setAvatarUrl(p?.avatarUrl ?? "")
+      setEmail(p?.email ?? "")
+      setPhoto(p?.avatarUrl ?? "")
       setBio(p?.bio ?? "")
+      if (p?.email) writeLocalEmail(p.email)
     } catch {
-      setError("Could not load profile")
+      setError("Could not load your profile")
     } finally {
       setLoading(false)
     }
@@ -48,32 +77,30 @@ export default function ManageMyIdPage() {
 
   useEffect(() => {
     if (!address) {
-      setProfile(null)
       setDisplayName("")
-      setAvatarUrl("")
+      setEmail("")
+      setPhoto("")
       setBio("")
       return
     }
     void loadProfile(address)
   }, [address, loadProfile])
 
-  const handleSave = async () => {
-    if (!address) return
+  const handleSave = async (): Promise<boolean> => {
+    if (!address) return false
     const name = displayName.trim()
     if (!name) {
-      setError("Display name is required")
-      return
+      setError("Enter your name.")
+      return false
     }
-
-    setSaving(true)
     setError(null)
-    setSaved(false)
+    const payload = profilePayload({
+      displayName: name,
+      avatarUrl: photo,
+      bio,
+      email,
+    })
     try {
-      const payload = {
-        displayName: name,
-        avatarUrl: avatarUrl.trim() || undefined,
-        bio: bio.trim() || undefined,
-      }
       const signed = await signOffchainAction({
         action: "identity.profile.update",
         resourceId: address,
@@ -84,37 +111,31 @@ export default function ManageMyIdPage() {
       const res = await fetch("/api/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          voterId: address,
-          ...signed,
-        }),
+        body: JSON.stringify({ ...payload, voterId: address, ...signed }),
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(typeof data?.error === "string" ? data.error : "Save failed")
-        return
+        setError(typeof data?.error === "string" ? data.error : "Could not save.")
+        return false
       }
       const p = data.profile as IdentityProfile
-      setProfile(p)
       setDisplayName(p.displayName)
-      setAvatarUrl(p.avatarUrl ?? "")
+      setEmail(p.email ?? "")
+      setPhoto(p.avatarUrl ?? "")
       setBio(p.bio ?? "")
-      setSaved(true)
+      if (p.email) writeLocalEmail(p.email)
+      else writeLocalEmail("")
+      return true
     } catch (e: unknown) {
-      const err = e as { message?: string }
-      const msg = err?.message ?? ""
+      const msg = (e as { message?: string })?.message ?? ""
       if (/reject|denied|cancel/i.test(msg)) {
-        setError("Save not submitted. Confirmation was canceled.")
+        setError("Save was canceled.")
       } else {
-        setError("Save failed")
+        setError("Could not save.")
       }
-    } finally {
-      setSaving(false)
+      return false
     }
   }
-
-  const connector = connectors[0]
 
   return (
     <div className="flex min-h-screen bg-white text-zinc-900">
@@ -122,133 +143,104 @@ export default function ManageMyIdPage() {
 
       <div className="ml-48 flex flex-1 justify-center p-8">
         <div className="w-full max-w-lg">
-          <h1 className="text-2xl font-semibold text-zinc-900">Manage My ID</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900">My ID</h1>
+          <p className="mt-2 text-sm text-zinc-600">Your name and photo. This is how people see you.</p>
 
           {!isConnected || !address ? (
             <div className="mt-8 rounded-lg border border-zinc-200 bg-zinc-50 p-6">
-              <p className="text-sm text-zinc-600">
-                Connect your account to set how you appear to other members.
-              </p>
-              {connector ? (
-                <button
-                  type="button"
-                  onClick={() => connect({ connector })}
-                  disabled={connectPending}
-                  className="mt-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {connectPending ? "Connecting…" : "Connect"}
-                </button>
-              ) : (
-                <p className="mt-4 text-sm text-amber-800">
-                  No wallet connector available.
-                </p>
-              )}
+              <p className="text-sm text-zinc-600">Sign up or log in to fill this in.</p>
+              <Link
+                href="/"
+                className="mt-4 inline-block rounded bg-[#1B4FE0] px-4 py-2 text-sm text-white hover:bg-[#1239B0]"
+              >
+                Get started
+              </Link>
             </div>
           ) : (
             <div className="mt-8 space-y-5">
               <div className="flex items-center gap-4">
-                {avatarUrl.trim() ? (
-                  <img
-                    src={avatarUrl.trim()}
-                    alt=""
-                    className="size-16 rounded-full border border-zinc-200 object-cover"
-                  />
+                {photo ? (
+                  <img src={photo} alt="" className="size-16 rounded-full border border-zinc-200 object-cover" />
                 ) : (
-                  <div className="flex size-16 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-2xl text-zinc-400">
-                    👤
+                  <div className="flex size-16 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-sm text-zinc-400">
+                    Photo
                   </div>
                 )}
-                <div>
-                  <p className="font-medium text-zinc-900">
-                    {displayName.trim() || profile?.displayName || "Your name"}
-                  </p>
-                  <p className="text-sm text-zinc-500">{shortAddress(address)}</p>
+                <div className="flex flex-col items-start gap-2">
+                  <label className="inline-block cursor-pointer rounded border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-50">
+                    Choose photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        e.target.value = ""
+                        if (!file) return
+                        void readPhoto(file)
+                          .then((url) => {
+                            setPhoto(url)
+                            setError(null)
+                          })
+                          .catch(() => setError("Could not use that photo."))
+                      }}
+                    />
+                  </label>
+                  {photo && (
+                    <button
+                      type="button"
+                      onClick={() => setPhoto("")}
+                      className="text-sm text-zinc-500 hover:text-zinc-800"
+                    >
+                      Remove photo
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Display name
-                </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-zinc-700">Name</span>
                 <input
                   type="text"
                   value={displayName}
-                  onChange={(e) => {
-                    setDisplayName(e.target.value)
-                    setSaved(false)
-                  }}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   maxLength={80}
-                  placeholder="How others see you"
+                  placeholder="Your name"
                   className="w-full rounded border border-zinc-200 bg-white p-2 text-zinc-900 placeholder:text-zinc-500"
                 />
-              </div>
+              </label>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Avatar URL
-                </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-zinc-700">Email</span>
                 <input
-                  type="url"
-                  value={avatarUrl}
-                  onChange={(e) => {
-                    setAvatarUrl(e.target.value)
-                    setSaved(false)
-                  }}
-                  placeholder="https://… (optional)"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@email.com"
                   className="w-full rounded border border-zinc-200 bg-white p-2 text-zinc-900 placeholder:text-zinc-500"
                 />
-              </div>
+              </label>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Short bio
-                </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-zinc-700">About you</span>
                 <textarea
                   value={bio}
-                  onChange={(e) => {
-                    setBio(e.target.value)
-                    setSaved(false)
-                  }}
+                  onChange={(e) => setBio(e.target.value)}
                   rows={3}
                   maxLength={280}
-                  placeholder="A line about you (optional)"
+                  placeholder="A line or two, if you want"
                   className="w-full rounded border border-zinc-200 bg-white p-2 text-zinc-900 placeholder:text-zinc-500"
                 />
-              </div>
+              </label>
 
-              {loading && (
-                <p className="text-sm text-zinc-500">Loading profile…</p>
-              )}
+              {loading && <p className="text-sm text-zinc-500">Loading…</p>}
               {error && (
-                <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                  {error}
-                </p>
-              )}
-              {saved && (
-                <p className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                  Profile saved.
-                </p>
+                <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>
               )}
 
-              <button
-                type="button"
-                onClick={() => void handleSave()}
-                disabled={saving || loading}
-                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {saving ? "Saving…" : "Save profile"}
-              </button>
+              <SaveMorphButton label="Save" onPress={handleSave} disabled={loading} />
             </div>
           )}
-
-          <div className="mt-10">
-            <Link
-              href="/settings"
-              className="text-sm text-zinc-600 underline hover:text-zinc-900"
-            >
-              Account settings
-            </Link>
-          </div>
         </div>
       </div>
     </div>

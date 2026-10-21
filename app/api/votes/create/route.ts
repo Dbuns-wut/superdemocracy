@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createCommunityVote } from "@/lib/votes/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function POST(request: Request) {
   let body: unknown
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     endTime: Number(endTime),
     allowVoteChange: Boolean(allowVoteChange),
   }
-  const origin = new URL(request.url).origin
+  const origin = signedRequestOrigin(request)
   const auth = await verifySignedAction({
     action: "votes.create",
     resourceId: String(orgId ?? ""),

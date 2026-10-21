@@ -4,16 +4,17 @@ Items Dustin and the agents still need to decide or build. Decisions behind each
 
 ## Product decisions still open
 
-- [ ] **Perspectives ↔ Pros vs Cons / Quick Debrief.** Map the existing Perspectives tab onto the three information levels without losing the neutral name. Dustin wants to look at the running app first (`npm run dev` → a referendum page) before deciding. (D-2026-09-09-06)
-- [ ] **Per-org feature toggles.** Which features are toggleable, their defaults, and where the settings dashboard lives. Start list: citizen initiatives (petition → approval → launch), Education Before Vote for community orgs. (D-2026-09-09-01)
-- [ ] **Per-org join requirements.** Shape of "this org requires X to join" (free text, structured fields, file upload for admin review). Union member card is the reference example. (D-2026-09-09-09)
+- [x] **Perspectives ↔ Pros vs Cons / Quick Debrief.** Mapped inside the existing Perspectives panel: Quick Debrief → Pros vs Cons → Evidence → Sources. Name stays Perspectives. Confirm in the running app (D-2026-09-16-01, D-2026-09-09-06).
+- [x] **Per-org feature toggles.** Org Settings: citizen initiatives off by default; Education Before Vote on by default for community orgs (D-2026-09-09-01, D-2026-09-09-05).
+- [x] **Per-org join requirements.** Community org settings: structured text/file fields (union-card preset). Admin reviews on the application (D-2026-09-09-09).
 
 ## Engineering — design before touching
 
+- [ ] **Verified identification.** Password sign-in is the account gate (D-2026-10-20-01, D-2026-10-16-01). Uploading and checking a driver's license or passport is not built. The vote key is still created in the browser.
 - [x] **On-chain ballot visibility.** `Referendum.ballots[address]` is no longer a public ranking. Blockchain votes default to auditor-visible sealed ballots. The appointed counter can open them. A secret count stores no choice on chain. (D-2026-10-09-01, supersedes D-2026-09-09-07)
-- [ ] **Education Before Vote for community orgs.** UI gate, soft default on, admin can disable. No chain involvement. (D-2026-09-09-05)
-- [ ] **Post-approval signature re-verification + eligibility monitoring** in `Organization.sol`. Blocked in part on a real global-verification path. (D-2026-09-09-08)
-- [ ] **Retire `Voting.sol`** once confirmed unreferenced. (D-2026-09-09-10)
+- [x] **Education Before Vote for community orgs.** UI gate on community votes, soft default on, admin can disable. No chain. (D-2026-09-09-05)
+- [ ] **Post-approval signature re-verification + eligibility monitoring** in `Organization.sol`. Remaining work documented (D-2026-09-16-03). Blocked in part on a real global-verification path. (D-2026-09-09-08)
+- [x] **Retire `Voting.sol`.** Removed; nothing referenced it. (D-2026-09-09-10)
 
 ## Housekeeping
 

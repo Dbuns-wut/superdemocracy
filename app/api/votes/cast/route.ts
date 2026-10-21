@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { castCommunityBallot } from "@/lib/votes/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function POST(request: Request) {
   let body: unknown
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     string,
     unknown
   >
-  const origin = new URL(request.url).origin
+  const origin = signedRequestOrigin(request)
   const auth = await verifySignedAction({
     action: "votes.cast",
     resourceId: String(voteId ?? ""),

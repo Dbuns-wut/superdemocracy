@@ -273,7 +273,7 @@ export async function setCommunityOrgAuditor(input: {
   if (auditor.toLowerCase() === org.creatorAddress.toLowerCase()) {
     return {
       ok: false,
-      error: "auditor must be a different wallet than the org admin",
+      error: "the counter must be someone other than the person who runs this organization",
       status: 400,
     }
   }

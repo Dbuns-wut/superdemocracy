@@ -104,7 +104,7 @@ export function NotificationBell() {
             Invitations
           </div>
           {!address ? (
-            <p className="p-3 text-sm text-zinc-600">Connect a wallet to see invitations.</p>
+            <p className="p-3 text-sm text-zinc-600">Sign in to see these.</p>
           ) : invites.length === 0 ? (
             <p className="p-3 text-sm text-zinc-500">No invitations yet.</p>
           ) : (

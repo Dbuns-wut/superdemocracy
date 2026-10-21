@@ -107,7 +107,25 @@ export async function migrate(): Promise<void> {
         display_name TEXT NOT NULL,
         avatar_url TEXT,
         bio TEXT,
+        email TEXT,
         updated_at BIGINT NOT NULL
+      );
+
+      ALTER TABLE identity_profiles ADD COLUMN IF NOT EXISTS email TEXT;
+
+      CREATE TABLE IF NOT EXISTS accounts (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at BIGINT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS auth_sessions (
+        token_hash TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        expires_at BIGINT NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS signed_nonces (

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createCommunityOrg, listCommunityOrgs } from "@/lib/community-orgs/store"
 import { enrichCommunityOrgsWithViewer } from "@/lib/community-applications/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function GET(req: Request) {
   const viewer = new URL(req.url).searchParams.get("viewer")
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const description = String(b.description ?? "")
   const membershipMode = b.membershipMode
   const creatorAddress = String(b.creatorAddress ?? b.voterId ?? "")
-  const origin = new URL(request.url).origin
+  const origin = signedRequestOrigin(request)
   const auth = await verifySignedAction({
     action: "community.orgs.create",
     resourceId: "new",

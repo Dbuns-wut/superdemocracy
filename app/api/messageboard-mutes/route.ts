@@ -5,7 +5,7 @@ import {
   clearMessageboardMute,
   getActiveMutedUntil,
 } from "@/lib/messageboard-mutes/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   if (!Number.isFinite(mutedUntil)) {
     return NextResponse.json({ error: "mutedUntil required" }, { status: 400 })
   }
-  const origin = new URL(req.url).origin
+  const origin = signedRequestOrigin(req)
   const auth = await verifySignedAction({
     action: "messageboard.mute.set",
     resourceId: orgKey,
@@ -74,7 +74,7 @@ export async function DELETE(req: Request) {
   const orgKey = String(body.orgKey ?? "")
   const targetUser = String(body.targetUser ?? "")
   const adminAddress = String(body.adminAddress ?? body.voterId ?? "")
-  const origin = new URL(req.url).origin
+  const origin = signedRequestOrigin(req)
   const auth = await verifySignedAction({
     action: "messageboard.mute.clear",
     resourceId: orgKey,

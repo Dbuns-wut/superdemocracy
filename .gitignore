@@ -44,6 +44,7 @@ next-env.d.ts
 # local JSON stores (dev / self-hosted)
 /data/*.json
 !/data/.gitkeep
+/data/uploads/
 
 # Foundry
 /contracts/cache/

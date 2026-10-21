@@ -117,7 +117,7 @@ Future methods may include ranked choice, approval, first-past-the-post, Condorc
 Users are required to open or acknowledge the relevant educational information before casting a ballot. This is a core Superdemocracy gate; it is on everywhere by default.
 
 - **Governance organizations (on-chain referendums):** `Referendum.acknowledgeEducation()` is required before `vote()`. The contract enforces it independently of the UI.
-- **Community organizations (off-chain):** the gate is a UI gate only — no contract involvement. It is on by default and an org admin may turn it off in the org's settings. Not yet implemented (D-2026-09-09-05, [todo.md](todo.md)).
+- **Community organizations (off-chain):** the gate is a UI gate only — no contract involvement. It is on by default and an org admin may turn it off in the org's settings (D-2026-09-09-05).
 
 The member-facing information tab is called **Perspectives**; it is where the Pros vs Cons layer lives (D-2026-09-09-06).
 

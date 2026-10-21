@@ -131,6 +131,28 @@ async function consumeNonce(input: {
   return consumeNonceJson(input)
 }
 
+/**
+ * The site the browser used. `request.url` follows the bind address, so a server on
+ * 0.0.0.0 would check a different domain than the one the person signed.
+ */
+export function signedRequestOrigin(request: Request): string {
+  const host = request.headers.get("host")?.trim()
+  const header = request.headers.get("origin")?.trim()
+  if (host && header) {
+    try {
+      const origin = new URL(header)
+      if (origin.host === host) return origin.origin
+    } catch {
+      /* use the host below */
+    }
+  }
+  if (host) {
+    const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "http"
+    return `${proto}://${host}`
+  }
+  return new URL(request.url).origin
+}
+
 export async function verifySignedAction(input: VerifyInput): Promise<VerifySignedActionResult> {
   const voterId = normalizeAddress(input.voterId)
   if (!voterId) return { ok: false, error: "invalid voterId", status: 400 }

@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server"
 import { getActiveMutedUntil } from "@/lib/messageboard-mutes/store"
+import {
+  createMessageboardPost,
+  listMessageboardPosts,
+} from "@/lib/messageboard/store"
 
-const BACKEND =
-  process.env.MESSAGE_BOARD_BACKEND_URL ?? "http://127.0.0.1:3001"
+const BACKEND = process.env.MESSAGE_BOARD_BACKEND_URL ?? "http://127.0.0.1:3001"
+
+async function tryBackend(
+  path: string,
+  init?: RequestInit
+): Promise<Response | null> {
+  try {
+    return await fetch(`${BACKEND}${path}`, {
+      ...init,
+      signal: AbortSignal.timeout(1500),
+    })
+  } catch {
+    return null
+  }
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -10,11 +27,15 @@ export async function GET(req: Request) {
   if (!org) {
     return NextResponse.json({ error: "Missing org" }, { status: 400 })
   }
-  const r = await fetch(
-    `${BACKEND}/messageboard?org=${encodeURIComponent(org)}`
-  )
-  const data = await r.json()
-  return NextResponse.json(data, { status: r.status })
+  const remote = await tryBackend(`/messageboard?org=${encodeURIComponent(org)}`)
+  if (remote) {
+    const data = await remote.json().catch(() => null)
+    if (remote.ok && Array.isArray(data)) {
+      return NextResponse.json(data)
+    }
+  }
+  const posts = await listMessageboardPosts(org)
+  return NextResponse.json(posts)
 }
 
 export async function POST(req: Request) {
@@ -26,6 +47,7 @@ export async function POST(req: Request) {
   }
   const user = String(body.user ?? "")
   const org = String(body.org ?? "")
+  const text = String(body.text ?? "")
   const until = await getActiveMutedUntil(org, user)
   if (until) {
     return NextResponse.json(
@@ -36,11 +58,21 @@ export async function POST(req: Request) {
       { status: 403 }
     )
   }
-  const r = await fetch(`${BACKEND}/messageboard`, {
+  const remote = await tryBackend("/messageboard", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
-  const data = await r.json().catch(() => ({}))
-  return NextResponse.json(data, { status: r.status })
+  if (remote) {
+    const data = await remote.json().catch(() => ({}))
+    if (remote.ok) return NextResponse.json(data, { status: remote.status })
+    if (remote.status !== 404 && remote.status < 500) {
+      return NextResponse.json(data, { status: remote.status })
+    }
+  }
+  const result = await createMessageboardPost({ user, org, text })
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
+  }
+  return NextResponse.json({ status: "posted", post: result.post }, { status: 201 })
 }

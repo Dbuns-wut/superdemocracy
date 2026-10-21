@@ -19,13 +19,14 @@ import { safeAddress, shortAddress } from "@/lib/address"
 import { waitForTransactionReceipt } from "wagmi/actions"
 import { config } from "@/lib/web3"
 import VoteBar from "@/components/VoteBar"
-import type { Perspective } from "@/lib/education/types"
+import { PerspectivesPanel } from "@/components/PerspectivesPanel"
+import type { ReferendumEducation } from "@/lib/education/types"
 
 export default function ReferendumPage() {
   const params = useParams()
   const paramAddress = Array.isArray(params?.address)
     ? params.address[0]
-    : params?.address
+    : params.address
   const contractAddress = safeAddress(paramAddress)
   const { address } = useAccount()
   const { data: blockNumber } = useBlockNumber({ watch: true })
@@ -35,7 +36,7 @@ export default function ReferendumPage() {
   const [detailsHover, setDetailsHover] = React.useState(false)
   const [detailsPinned, setDetailsPinned] = React.useState(false)
   const [perspectivesOpen, setPerspectivesOpen] = React.useState(false)
-  const [perspectives, setPerspectives] = React.useState<Perspective[]>([])
+  const [education, setEducation] = React.useState<ReferendumEducation | null>(null)
   const [perspectivesLoading, setPerspectivesLoading] = React.useState(false)
   const [ackPending, setAckPending] = React.useState(false)
   const [accepted, setAccepted] = React.useState(false)
@@ -56,8 +57,8 @@ export default function ReferendumPage() {
       try {
         const res = await fetch(`/api/education/${encodeURIComponent(contractAddress)}`)
         const data = await res.json().catch(() => ({}))
-        if (!cancelled && res.ok && Array.isArray(data?.education?.perspectives)) {
-          setPerspectives(data.education.perspectives)
+        if (!cancelled && res.ok && data?.education) {
+          setEducation(data.education)
         }
       } finally {
         if (!cancelled) setPerspectivesLoading(false)
@@ -395,7 +396,7 @@ export default function ReferendumPage() {
             >
               <p>Status: {readableStatus}</p>
               <p>Id: {contractAddress ? shortAddress(contractAddress) : "—"}</p>
-              <p>You: {address ? shortAddress(address) : "Not connected"}</p>
+              <p>You: {address ? shortAddress(address) : "Signing in…"}</p>
             </div>
           )}
         </div>
@@ -416,10 +417,15 @@ export default function ReferendumPage() {
             {!address && (
               <button
                 type="button"
-                onClick={() => connect({ connector: connectors[0] })}
+                onClick={() =>
+                  connect({
+                    connector:
+                      connectors.find((c) => c.id === "superdemocracy") ?? connectors[0],
+                  })
+                }
                 className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
-                Connect
+                Continue
               </button>
             )}
             {readableStatus === "Active" && address && (
@@ -510,46 +516,16 @@ export default function ReferendumPage() {
         {isVoting && <div className="mt-2 text-sm text-zinc-600">Submitting…</div>}
       </div>
 
-      {perspectivesOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-xl border border-zinc-200 bg-white p-6 shadow-lg">
-            <h2 className="text-xl font-semibold text-zinc-900">Perspectives</h2>
-            <div className="mt-4 space-y-4">
-              {perspectivesLoading ? (
-                <p className="text-sm text-zinc-500">Loading…</p>
-              ) : perspectives.length === 0 ? (
-                <p className="text-sm text-zinc-500">No perspectives published.</p>
-              ) : (
-                perspectives.map((p) => (
-                  <section key={p.id}>
-                    <h3 className="font-medium text-zinc-900">{p.title}</h3>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-700">{p.body}</p>
-                  </section>
-                ))
-              )}
-            </div>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setPerspectivesOpen(false)}
-                className="rounded bg-zinc-200 px-4 py-2 text-zinc-900 hover:bg-zinc-300"
-              >
-                Close
-              </button>
-              {address && !hasAcked && (
-                <button
-                  type="button"
-                  disabled={ackPending || perspectivesLoading}
-                  onClick={() => void handleAcknowledge()}
-                  className="rounded bg-amber-500 px-4 py-2 text-white hover:bg-amber-600 disabled:opacity-50"
-                >
-                  {ackPending ? "Confirming…" : "I have read these"}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <PerspectivesPanel
+        open={perspectivesOpen}
+        education={education}
+        loading={perspectivesLoading}
+        onClose={() => setPerspectivesOpen(false)}
+        showAcknowledge={Boolean(address && !hasAcked)}
+        acknowledgeLabel={ackPending ? "Confirming…" : "I have read these"}
+        acknowledgePending={ackPending}
+        onAcknowledge={() => void handleAcknowledge()}
+      />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { handleVerificationAction } from "@/lib/votes/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -26,7 +26,7 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "action must be open or close" }, { status: 400 })
   }
 
-  const origin = new URL(request.url).origin
+  const origin = signedRequestOrigin(request)
   const auth = await verifySignedAction({
     action: "votes.verification",
     resourceId: voteId,
