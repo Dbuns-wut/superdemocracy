@@ -2,21 +2,35 @@ import { promises as fs } from "fs"
 import path from "path"
 import { randomUUID } from "crypto"
 import { getAddress, isAddress } from "viem"
-import type { ReferendumEducation } from "./types"
+import type {
+  EvidenceItem,
+  Perspective,
+  QuickDebrief,
+  ReferendumEducation,
+  SourceItem,
+} from "./types"
+import { emptyQuickDebrief } from "./types"
 
 const DATA_DIR = path.join(process.cwd(), "data")
 const FILE = path.join(DATA_DIR, "referendum-education.json")
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 type Store = Record<string, ReferendumEducation>
 
-function normalizeAddress(input: string): string | null {
+function normalizeSubject(input: string): string | null {
   const t = input.trim()
-  if (!t || !isAddress(t)) return null
-  try {
-    return getAddress(t as `0x${string}`)
-  } catch {
-    return null
+  if (!t) return null
+  if (isAddress(t)) {
+    try {
+      return getAddress(t as `0x${string}`)
+    } catch {
+      return null
+    }
   }
+  if (UUID_RE.test(t)) return t.toLowerCase()
+  return null
 }
 
 async function readStore(): Promise<Store> {
@@ -35,9 +49,40 @@ async function writeStore(store: Store): Promise<void> {
   await fs.writeFile(FILE, JSON.stringify(store, null, 2), "utf8")
 }
 
-function defaultEducation(referendumAddress: string): ReferendumEducation {
+function asQuickDebrief(raw: unknown): QuickDebrief {
+  const base = emptyQuickDebrief()
+  if (!raw || typeof raw !== "object") return base
+  const r = raw as Record<string, unknown>
   return {
-    referendumAddress,
+    what: String(r.what ?? ""),
+    why: String(r.why ?? ""),
+    known: String(r.known ?? ""),
+    disputed: String(r.disputed ?? ""),
+    uncertain: String(r.uncertain ?? ""),
+  }
+}
+
+function migrateEducation(subjectId: string, raw: ReferendumEducation): ReferendumEducation {
+  return {
+    referendumAddress: subjectId,
+    quickDebrief: asQuickDebrief(raw.quickDebrief),
+    perspectives: Array.isArray(raw.perspectives) ? raw.perspectives : [],
+    evidence: Array.isArray(raw.evidence) ? raw.evidence : [],
+    sources: Array.isArray(raw.sources) ? raw.sources : [],
+    updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : Date.now(),
+  }
+}
+
+function defaultEducation(subjectId: string): ReferendumEducation {
+  return {
+    referendumAddress: subjectId,
+    quickDebrief: {
+      what: "What is being decided is listed in the title and options on this page.",
+      why: "Your choice helps the organization pick a direction on this issue.",
+      known: "The options and description on this decision are the starting facts.",
+      disputed: "Members may disagree about costs, benefits, and which option is better.",
+      uncertain: "Open Evidence and Sources below when you want more than this short debrief.",
+    },
     perspectives: [
       {
         id: randomUUID(),
@@ -50,49 +95,103 @@ function defaultEducation(referendumAddress: string): ReferendumEducation {
         body: "Arguments against this proposal. Members should read both sides before acknowledging.",
       },
     ],
+    evidence: [],
+    sources: [],
     updatedAt: Date.now(),
   }
 }
 
 export async function getEducation(
-  referendumAddress: string
+  subjectIdRaw: string
 ): Promise<ReferendumEducation | null> {
-  const addr = normalizeAddress(referendumAddress)
-  if (!addr) return null
+  const subjectId = normalizeSubject(subjectIdRaw)
+  if (!subjectId) return null
   const store = await readStore()
-  const existing = store[addr.toLowerCase()]
-  if (existing) return existing
-  const seeded = defaultEducation(addr)
-  store[addr.toLowerCase()] = seeded
+  const existing = store[subjectId.toLowerCase()]
+  if (existing) {
+    const needsMigrate =
+      !existing.quickDebrief || !Array.isArray(existing.evidence) || !Array.isArray(existing.sources)
+    const migrated = migrateEducation(subjectId, existing)
+    if (needsMigrate) {
+      store[subjectId.toLowerCase()] = migrated
+      await writeStore(store)
+    }
+    return migrated
+  }
+  const seeded = defaultEducation(subjectId)
+  store[subjectId.toLowerCase()] = seeded
   await writeStore(store)
   return seeded
+}
+
+function cleanPerspectives(input: unknown): Perspective[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .map((p) => {
+      const row = p as { title?: string; body?: string }
+      return {
+        id: randomUUID(),
+        title: String(row.title ?? "").trim(),
+        body: String(row.body ?? "").trim(),
+      }
+    })
+    .filter((p) => p.title && p.body)
+}
+
+function cleanEvidence(input: unknown): EvidenceItem[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .map((p) => {
+      const row = p as { title?: string; body?: string }
+      return {
+        id: randomUUID(),
+        title: String(row.title ?? "").trim(),
+        body: String(row.body ?? "").trim(),
+      }
+    })
+    .filter((p) => p.title && p.body)
+}
+
+function cleanSources(input: unknown): SourceItem[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .map((p) => {
+      const row = p as { title?: string; url?: string; note?: string }
+      return {
+        id: randomUUID(),
+        title: String(row.title ?? "").trim(),
+        url: String(row.url ?? "").trim(),
+        note: String(row.note ?? "").trim(),
+      }
+    })
+    .filter((p) => p.title || p.url)
 }
 
 export async function setEducation(input: {
   referendumAddress: string
   perspectives: { title: string; body: string }[]
+  quickDebrief?: unknown
+  evidence?: unknown
+  sources?: unknown
 }): Promise<
   { ok: true; education: ReferendumEducation } | { ok: false; error: string; status: number }
 > {
-  const addr = normalizeAddress(input.referendumAddress)
-  if (!addr) return { ok: false, error: "invalid referendum address", status: 400 }
-  const perspectives = input.perspectives
-    .map((p) => ({
-      id: randomUUID(),
-      title: String(p.title ?? "").trim(),
-      body: String(p.body ?? "").trim(),
-    }))
-    .filter((p) => p.title && p.body)
+  const subjectId = normalizeSubject(input.referendumAddress)
+  if (!subjectId) return { ok: false, error: "invalid education subject", status: 400 }
+  const perspectives = cleanPerspectives(input.perspectives)
   if (perspectives.length < 1) {
     return { ok: false, error: "at least one perspective required", status: 400 }
   }
   const education: ReferendumEducation = {
-    referendumAddress: addr,
+    referendumAddress: subjectId,
+    quickDebrief: asQuickDebrief(input.quickDebrief),
     perspectives,
+    evidence: cleanEvidence(input.evidence),
+    sources: cleanSources(input.sources),
     updatedAt: Date.now(),
   }
   const store = await readStore()
-  store[addr.toLowerCase()] = education
+  store[subjectId.toLowerCase()] = education
   await writeStore(store)
   return { ok: true, education }
 }

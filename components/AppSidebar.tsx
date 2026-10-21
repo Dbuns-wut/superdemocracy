@@ -37,10 +37,10 @@ export function AppSidebar({
       />
 
       <Link href="/me" className={linkClass("me")}>
-        👤 <span>Manage My ID</span>
+        👤 <span>My ID</span>
       </Link>
 
-      <Link href="/" className={linkClass("orgs")}>
+      <Link href="/orgs" className={linkClass("orgs")}>
         👥 <span>Orgs</span>
       </Link>
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { listMessagesForUser, sendDirectMessage } from "@/lib/messages/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function GET(req: Request) {
   const user = new URL(req.url).searchParams.get("user")?.trim() ?? ""
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   const to = String(body.to ?? "")
   const text = String(body.body ?? body.message ?? "")
   const orgId = body.orgId == null ? null : String(body.orgId)
-  const origin = new URL(req.url).origin
+  const origin = signedRequestOrigin(req)
   const auth = await verifySignedAction({
     action: "messages.send",
     resourceId: to,

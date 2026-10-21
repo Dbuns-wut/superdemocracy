@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server"
 import { getActiveMutedUntil } from "@/lib/messageboard-mutes/store"
+import { reactToMessageboardPost } from "@/lib/messageboard/store"
 
-const BACKEND =
-  process.env.MESSAGE_BOARD_BACKEND_URL ?? "http://127.0.0.1:3001"
+const BACKEND = process.env.MESSAGE_BOARD_BACKEND_URL ?? "http://127.0.0.1:3001"
+
+async function tryBackend(path: string, init?: RequestInit): Promise<Response | null> {
+  try {
+    return await fetch(`${BACKEND}${path}`, {
+      ...init,
+      signal: AbortSignal.timeout(1500),
+    })
+  } catch {
+    return null
+  }
+}
 
 export async function POST(req: Request) {
   let body: { postId?: string; user?: string; reaction?: string; org?: string }
@@ -27,11 +38,26 @@ export async function POST(req: Request) {
     )
   }
   const { postId, reaction } = body
-  const r = await fetch(`${BACKEND}/messageboard/react`, {
+  const remote = await tryBackend("/messageboard/react", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ postId, user, reaction }),
   })
-  const data = await r.json().catch(() => ({}))
-  return NextResponse.json(data, { status: r.status })
+  if (remote) {
+    const data = await remote.json().catch(() => ({}))
+    if (remote.ok) return NextResponse.json(data, { status: remote.status })
+    if (remote.status !== 404 && remote.status < 500) {
+      return NextResponse.json(data, { status: remote.status })
+    }
+  }
+  const result = await reactToMessageboardPost({
+    postId: String(postId ?? ""),
+    user,
+    reaction,
+    org,
+  })
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
+  }
+  return NextResponse.json({ status: "reacted", post: result.post })
 }

@@ -121,7 +121,7 @@ export function PetitionCard({
 
   async function handleSign() {
     if (!walletAddress) {
-      setSignError("Connect wallet first.")
+      setSignError("Sign in first.")
       return
     }
     setSignError(null)
@@ -211,7 +211,7 @@ export function PetitionCard({
 
   async function handleSubmitToAdmins() {
     if (!walletAddress || !org) {
-      setSubmissionStatus("Connect wallet first.")
+      setSubmissionStatus("Sign in first.")
       return
     }
     if (!window.confirm("Submit this petition to admins for review?")) return

@@ -4,7 +4,7 @@ import {
   listCommunityApplications,
 } from "@/lib/community-applications/store"
 import { normalizeOrgId } from "@/lib/org-id"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -37,13 +37,14 @@ export async function POST(req: Request) {
   }
   const user = String(body.user ?? body.voterId ?? "")
   const message = String(body.message ?? "")
-  const origin = new URL(req.url).origin
+  const answers = Array.isArray(body.answers) ? body.answers : []
+  const origin = signedRequestOrigin(req)
   const auth = await verifySignedAction({
     action: "community.applications.create",
     resourceId: orgId,
     voterId: user,
     choices: [],
-    payload: { message },
+    payload: { message, answers },
     nonce: String(body.nonce ?? ""),
     issuedAt: Number(body.issuedAt),
     expiresAt: Number(body.expiresAt),
@@ -56,6 +57,15 @@ export async function POST(req: Request) {
     orgId,
     user: auth.signer,
     message,
+    answers: answers.map((row) => {
+      const r = row as { fieldId?: string; label?: string; type?: string; value?: string }
+      return {
+        fieldId: String(r.fieldId ?? ""),
+        label: String(r.label ?? ""),
+        type: r.type === "file" ? "file" : "text",
+        value: String(r.value ?? ""),
+      }
+    }),
   })
   if (!result.ok) {
     if (result.error === "already_applied") {

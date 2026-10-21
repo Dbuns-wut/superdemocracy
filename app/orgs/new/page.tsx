@@ -29,7 +29,7 @@ export default function CreateOrganization() {
   const [orgTitle, setOrgTitle] = useState("")
   const [orgDescription, setOrgDescription] = useState("")
   const [orgMode, setOrgMode] = useState<"Open" | "Manual" | "Automatic">("Open")
-  const [orgType, setOrgType] = useState<"ON_CHAIN" | "OFF_CHAIN">("ON_CHAIN")
+  const [orgType, setOrgType] = useState<"ON_CHAIN" | "OFF_CHAIN">("OFF_CHAIN")
 
   const handleCreate = async () => {
     if (!orgTitle.trim() || !orgDescription.trim()) {
@@ -37,7 +37,12 @@ export default function CreateOrganization() {
       return
     }
     if (!address) {
-      alert("Please connect your wallet so we can record the creator of this org.")
+      alert("Sign in before creating an organization.")
+      return
+    }
+
+    if (orgType === "ON_CHAIN") {
+      alert("Governance organizations are not available with this account yet. Choose Community to vote now.")
       return
     }
 
@@ -194,8 +199,8 @@ export default function CreateOrganization() {
                 onChange={(e) => setOrgType(e.target.value as "ON_CHAIN" | "OFF_CHAIN")}
                 className="w-full p-3 border border-zinc-200 rounded bg-white text-zinc-900"
               >
-                <option value="ON_CHAIN">On-chain</option>
                 <option value="OFF_CHAIN">Community</option>
+                <option value="ON_CHAIN">Governance</option>
               </select>
             </div>
 

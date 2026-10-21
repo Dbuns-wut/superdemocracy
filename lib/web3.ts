@@ -4,6 +4,7 @@ import { createConfig } from "wagmi";
 import { http } from "viem";
 import { defineChain } from "viem";
 import { injected } from "wagmi/connectors";
+import { inAppProvider } from "@/lib/in-app-account";
 
 export const anvil = defineChain({
   id: 31338,
@@ -21,7 +22,16 @@ export const anvil = defineChain({
 
 export const config = createConfig({
   chains: [anvil],
-  connectors: [injected()],
+  connectors: [
+    injected({
+      target: {
+        id: "superdemocracy",
+        name: "SuperDemocracy",
+        provider: inAppProvider,
+      },
+    }),
+    injected(),
+  ],
   transports: {
     [anvil.id]: http(),
   },

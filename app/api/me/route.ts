@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
+import { profilePayload } from "@/lib/identity/profile-payload"
 import { getProfileByAddress, upsertProfile } from "@/lib/identity/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function GET(req: Request) {
   const address = new URL(req.url).searchParams.get("address")?.trim() ?? ""
@@ -25,21 +26,20 @@ export async function PUT(request: Request) {
   }
 
   const voterId = String(body.voterId ?? body.address ?? "")
-  const displayName = String(body.displayName ?? "")
-  const avatarUrl =
-    body.avatarUrl === undefined || body.avatarUrl === null
-      ? undefined
-      : String(body.avatarUrl)
-  const bio =
-    body.bio === undefined || body.bio === null ? undefined : String(body.bio)
+  const payload = profilePayload({
+    displayName: String(body.displayName ?? ""),
+    avatarUrl: body.avatarUrl == null ? undefined : String(body.avatarUrl),
+    bio: body.bio == null ? undefined : String(body.bio),
+    email: body.email == null ? undefined : String(body.email),
+  })
 
-  const origin = new URL(request.url).origin
+  const origin = signedRequestOrigin(request)
   const auth = await verifySignedAction({
     action: "identity.profile.update",
     resourceId: voterId,
     voterId,
     choices: [],
-    payload: { displayName, avatarUrl, bio },
+    payload,
     nonce: String(body.nonce ?? ""),
     issuedAt: Number(body.issuedAt),
     expiresAt: Number(body.expiresAt),
@@ -50,11 +50,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
 
-  const result = await upsertProfile(auth.signer, {
-    displayName,
-    avatarUrl,
-    bio,
-  })
+  const result = await upsertProfile(auth.signer, payload)
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }

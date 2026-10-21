@@ -8,15 +8,25 @@ import {
   recordCommunityOrgMember,
   normalizeCreator,
 } from "@/lib/community-orgs/store"
+import { getOrgSettings } from "@/lib/org-settings/store"
+import { getJoinFile } from "@/lib/join-files/store"
 
 const DATA_DIR = path.join(process.cwd(), "data")
 const APPLICATIONS_FILE = path.join(DATA_DIR, "community-applications.json")
+
+export type JoinFieldAnswer = {
+  fieldId: string
+  label: string
+  type: "text" | "file"
+  value: string
+}
 
 export type CommunityApplicationRecord = {
   id: string
   orgId: string
   user: string
   message: string
+  answers?: JoinFieldAnswer[]
   status: "pending" | "approved" | "rejected"
   createdAt: number
 }
@@ -65,6 +75,7 @@ export async function createCommunityApplication(input: {
   orgId: string
   user: string
   message: string
+  answers?: JoinFieldAnswer[]
 }): Promise<
   | { ok: true; application: CommunityApplicationRecord }
   | { ok: false; error: string; status: number }
@@ -79,6 +90,31 @@ export async function createCommunityApplication(input: {
   const user = normalizeCreator(input.user)
   if (!user) return { ok: false, error: "valid user address required", status: 400 }
   const message = String(input.message ?? "").trim()
+
+  const settings = await getOrgSettings(orgId)
+  const requirements = settings?.joinRequirements ?? []
+  const incoming = Array.isArray(input.answers) ? input.answers : []
+  const answers: JoinFieldAnswer[] = []
+  for (const field of requirements) {
+    const match = incoming.find((a) => a.fieldId === field.id)
+    const value = String(match?.value ?? "").trim()
+    if (field.required && !value) {
+      return { ok: false, error: `${field.label} is required`, status: 400 }
+    }
+    if (!value) continue
+    if (field.type === "file") {
+      const file = await getJoinFile(value)
+      if (!file) {
+        return { ok: false, error: `${field.label} upload was not found`, status: 400 }
+      }
+    }
+    answers.push({
+      fieldId: field.id,
+      label: field.label,
+      type: field.type,
+      value,
+    })
+  }
 
   const rows = await readApplications()
   const pendingDup = rows.some(
@@ -96,6 +132,7 @@ export async function createCommunityApplication(input: {
     orgId,
     user,
     message,
+    answers,
     status: "pending",
     createdAt: Date.now(),
   }

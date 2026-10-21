@@ -4,7 +4,7 @@ import {
   listMemberInvitesForUser,
 } from "@/lib/member-invites/store"
 import { normalizeCreator } from "@/lib/community-orgs/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   const orgSlug = String(body.orgSlug ?? "")
   const orgTitle = String(body.orgTitle ?? "")
   const invitee = String(body.invitee ?? "")
-  const origin = new URL(req.url).origin
+  const origin = signedRequestOrigin(req)
   const auth = await verifySignedAction({
     action: "member-invites.create",
     resourceId: orgSlug,

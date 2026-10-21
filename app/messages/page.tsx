@@ -41,7 +41,7 @@ function MessagesComposer() {
 
   const handleSend = async () => {
     if (!address) {
-      setStatus("Connect your wallet to send.");
+      setStatus("Sign in to send.");
       return;
     }
     if (!recipient.trim() || !message.trim()) {
@@ -145,7 +145,7 @@ function MessagesComposer() {
         <div className="mt-10">
           <h2 className="text-lg font-medium text-zinc-900">Inbox</h2>
           {!address ? (
-            <p className="mt-3 text-sm text-zinc-500">Connect to see messages.</p>
+            <p className="mt-3 text-sm text-zinc-500">Sign in to see your messages.</p>
           ) : inbox.length === 0 ? (
             <p className="mt-3 text-sm text-zinc-500">No messages yet.</p>
           ) : (

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { votePoll } from "@/lib/polls/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 export async function POST(request: Request) {
   let body: unknown
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "expected JSON object" }, { status: 400 })
   }
   const { pollId, voterId, choices, nonce, issuedAt, expiresAt, signature } = body as Record<string, unknown>
-  const origin = new URL(request.url).origin
+  const origin = signedRequestOrigin(request)
   const auth = await verifySignedAction({
     action: "polls.vote",
     resourceId: String(pollId ?? ""),

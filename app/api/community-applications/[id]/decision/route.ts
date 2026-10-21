@@ -3,7 +3,7 @@ import {
   approveCommunityApplication,
   rejectCommunityApplication,
 } from "@/lib/community-applications/store"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -23,7 +23,7 @@ export async function POST(req: Request, context: Params) {
   if (decision !== "approve" && decision !== "reject") {
     return NextResponse.json({ error: "decision must be approve or reject" }, { status: 400 })
   }
-  const origin = new URL(req.url).origin
+  const origin = signedRequestOrigin(req)
   const auth = await verifySignedAction({
     action: "community.applications.decision",
     resourceId: id.trim(),

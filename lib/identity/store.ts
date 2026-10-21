@@ -59,6 +59,7 @@ async function pgGetProfile(address: string): Promise<IdentityProfile | null> {
       displayName: row.display_name,
       ...(row.avatar_url ? { avatarUrl: row.avatar_url } : {}),
       ...(row.bio ? { bio: row.bio } : {}),
+      ...(row.email ? { email: row.email } : {}),
       updatedAt: Number(row.updated_at),
     }
   })
@@ -68,18 +69,20 @@ async function pgUpsertProfile(profile: IdentityProfile): Promise<void> {
   await ensureMigrated()
   await withDbClient(async (client) => {
     await client.query(
-      `INSERT INTO identity_profiles (address, display_name, avatar_url, bio, updated_at)
-       VALUES ($1,$2,$3,$4,$5)
+      `INSERT INTO identity_profiles (address, display_name, avatar_url, bio, email, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (address) DO UPDATE SET
          display_name = EXCLUDED.display_name,
          avatar_url = EXCLUDED.avatar_url,
          bio = EXCLUDED.bio,
+         email = EXCLUDED.email,
          updated_at = EXCLUDED.updated_at`,
       [
         profile.address,
         profile.displayName,
         profile.avatarUrl ?? null,
         profile.bio ?? null,
+        profile.email ?? null,
         profile.updatedAt,
       ]
     )
@@ -114,20 +117,28 @@ export async function upsertProfile(
 
   const displayName = String(input.displayName ?? "").trim()
   if (!displayName) {
-    return { ok: false, error: "display name is required", status: 400 }
+    return { ok: false, error: "Name is required.", status: 400 }
   }
   if (displayName.length > 80) {
-    return { ok: false, error: "display name is too long", status: 400 }
+    return { ok: false, error: "Name is too long.", status: 400 }
   }
 
   const avatarUrl = trimOptional(input.avatarUrl)
-  if (avatarUrl && avatarUrl.length > 2048) {
-    return { ok: false, error: "avatar URL is too long", status: 400 }
+  if (avatarUrl && avatarUrl.length > 100_000) {
+    return { ok: false, error: "Photo is too large.", status: 400 }
   }
 
   const bio = trimOptional(input.bio)
   if (bio && bio.length > 280) {
-    return { ok: false, error: "bio is too long", status: 400 }
+    return { ok: false, error: "About you is too long.", status: 400 }
+  }
+
+  const email = trimOptional(input.email)?.toLowerCase()
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Email doesn't look right.", status: 400 }
+  }
+  if (email && email.length > 120) {
+    return { ok: false, error: "Email is too long.", status: 400 }
   }
 
   const profile: IdentityProfile = {
@@ -135,6 +146,7 @@ export async function upsertProfile(
     displayName,
     ...(avatarUrl ? { avatarUrl } : {}),
     ...(bio ? { bio } : {}),
+    ...(email ? { email } : {}),
     updatedAt: Date.now(),
   }
 

@@ -4,7 +4,7 @@ import {
   recordCommunityOrgMember,
 } from "@/lib/community-orgs/store"
 import { isOffchainOrgId, normalizeOrgId } from "@/lib/org-id"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -41,7 +41,7 @@ export async function POST(req: Request, context: Params) {
     return NextResponse.json({ error: "invalid json" }, { status: 400 })
   }
   const address = String(body.address ?? body.voterId ?? "")
-  const origin = new URL(req.url).origin
+  const origin = signedRequestOrigin(req)
   const auth = await verifySignedAction({
     action: "community.members.join",
     resourceId: normalized,

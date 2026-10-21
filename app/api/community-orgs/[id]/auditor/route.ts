@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { setCommunityOrgAuditor } from "@/lib/community-orgs/store"
 import { isOffchainOrgId, normalizeOrgId } from "@/lib/org-id"
-import { verifySignedAction } from "@/lib/request-signatures"
+import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -22,7 +22,7 @@ export async function POST(req: Request, context: Params) {
 
   const auditorAddress = String(body.auditorAddress ?? "")
   const voterId = String(body.voterId ?? body.adminAddress ?? "")
-  const origin = new URL(req.url).origin
+  const origin = signedRequestOrigin(req)
   const auth = await verifySignedAction({
     action: "community.orgs.setAuditor",
     resourceId: orgId,

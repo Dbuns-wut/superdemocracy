@@ -14,8 +14,12 @@ import { abi as registryAbi } from "@/abis/GroupRegistry.json";
 import { abi as organizationAbi } from "@/abis/Organization.json";
 import { PetitionCard } from "@/components/PetitionCard";
 import { OrgItemShareButton } from "@/components/OrgItemShareButton";
+import { OrgSettingsPanel } from "@/components/OrgSettingsPanel";
+import { PerspectivesPanel } from "@/components/PerspectivesPanel";
 import { OrganizationAddressProvider } from "@/contexts/OrganizationAddressContext";
 import { useOrgShortcutIcons } from "@/hooks/useOrgShortcutIcons";
+import type { OrgSettings } from "@/lib/org-settings/types";
+import type { ReferendumEducation } from "@/lib/education/types";
 
 /** Spans for “no deadline” / open-ended polls and votes. */
 const MS_OPEN_ENDED = 100 * 365.25 * 24 * 60 * 60 * 1000;
@@ -51,9 +55,20 @@ function parsePinnedEventNote(note: string): ParsedPinnedEvent | null {
   return { title, url, description, shareId };
 }
 
+type JoinFieldAnswer = {
+  fieldId: string
+  label: string
+  type: "text" | "file"
+  value: string
+}
+
 type PendingApplicationRow =
   | { source: "onchain"; user: string; message: string; org: string }
-  | { source: "community"; id: string; user: string; message: string };
+  | { source: "community"; id: string; user: string; message: string; answers?: JoinFieldAnswer[] };
+
+function communityEduAckKey(voteId: string, voter: string) {
+  return `sd-edu-ack:${voteId}:${voter.toLowerCase()}`;
+}
 
 const orgAbi = [
   {
@@ -234,6 +249,11 @@ export default function OrgPage() {
   const [codeOfConductDraftDocDataUrl, setCodeOfConductDraftDocDataUrl] = useState("");
   const [codeOfConductDocDragActive, setCodeOfConductDocDragActive] = useState(false);
   const [codeOfConductAdminEditing, setCodeOfConductAdminEditing] = useState(false);
+  const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
+  const [perspectivesVoteId, setPerspectivesVoteId] = useState<string | null>(null);
+  const [voteEducation, setVoteEducation] = useState<ReferendumEducation | null>(null);
+  const [voteEducationLoading, setVoteEducationLoading] = useState(false);
+  const [communityEduAck, setCommunityEduAck] = useState<Record<string, boolean>>({});
 
   const codeOfConductHasSavedContent = useMemo(
     () => Boolean(codeOfConductText.trim() || codeOfConductDocDataUrl),
@@ -437,11 +457,12 @@ export default function OrgPage() {
             const apps = data.applications ?? [];
             rows.push(
               ...apps.map(
-                (a: { id: string; user: string; message: string }) => ({
+                (a: { id: string; user: string; message: string; answers?: JoinFieldAnswer[] }) => ({
                   source: "community" as const,
                   id: a.id,
                   user: a.user,
                   message: a.message,
+                  answers: Array.isArray(a.answers) ? a.answers : [],
                 })
               )
             );
@@ -456,6 +477,25 @@ export default function OrgPage() {
 
     fetchApps();
   }, [mounted, orgAddress, orgAddr, offchainId, offchainOrg?.membershipMode]);
+
+  useEffect(() => {
+    if (!orgKey) return;
+    let cancelled = false;
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/org-settings/${encodeURIComponent(orgKey)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok && data.settings) {
+          setOrgSettings(data.settings);
+        }
+      } catch {
+        /* keep defaults */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orgKey]);
 
   useEffect(() => {
     if (!showInviteModal) return;
@@ -694,7 +734,7 @@ export default function OrgPage() {
         const res = await fetch(
           `/api/messageboard-proxy?org=${encodeURIComponent(orgKey)}`
         );
-        const data = await res.json();
+        const data = await res.json().catch(() => []);
         setPosts(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to fetch messageboard posts", err);
@@ -1178,7 +1218,7 @@ export default function OrgPage() {
     }
 
     if (!userAddr) {
-      setPollStatus("Connect your wallet to create a poll.");
+      setPollStatus("Sign in to create a poll.");
       return;
     }
     const createBody = {
@@ -1381,7 +1421,7 @@ export default function OrgPage() {
 
   const handleVotePoll = async (pollId: string) => {
     if (!userAddr) {
-      setPollStatus("Connect your wallet to securely submit an off-chain vote.");
+      setPollStatus("Sign in to vote.");
       return;
     }
     const pollMeta = polls.find((p) => p.id === pollId);
@@ -1428,7 +1468,7 @@ export default function OrgPage() {
     });
     await reloadPolls();
     trackSocialInteraction("poll", pollId);
-    setPollStatus("Vote submitted securely (off-chain, no gas fee).");
+    setPollStatus("Vote accepted and counted.");
   };
 
   const handleCreateCommunityVote = async () => {
@@ -1449,7 +1489,7 @@ export default function OrgPage() {
       return;
     }
     if (!userAddr) {
-      setVoteStatus("Connect your wallet to create a vote.");
+      setVoteStatus("Sign in to create a vote.");
       return;
     }
     const createBody = {
@@ -1507,7 +1547,14 @@ export default function OrgPage() {
 
   const handleCastCommunityVote = async (voteId: string) => {
     if (!userAddr) {
-      setVoteStatus("Connect your wallet to submit a ballot.");
+      setVoteStatus("Sign in to vote.");
+      return;
+    }
+    const educationRequired = orgType === "OFF_CHAIN" && orgSettings?.educationBeforeVote !== false;
+    const acked = Boolean(communityEduAck[voteId]);
+    if (educationRequired && !acked) {
+      setPerspectivesVoteId(voteId);
+      setVoteStatus("Open Perspectives before submitting a ballot.");
       return;
     }
     const choices = voteChoices[voteId] ?? [];
@@ -1544,7 +1591,60 @@ export default function OrgPage() {
     }
     trackSocialInteraction("vote", voteId);
     void reloadCommunityVotes();
-    setVoteStatus("Ballot recorded.");
+    setVoteStatus("Vote accepted and counted.");
+  };
+
+  useEffect(() => {
+    if (!perspectivesVoteId) {
+      setVoteEducation(null);
+      return;
+    }
+    let cancelled = false;
+    setVoteEducationLoading(true);
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/education/${encodeURIComponent(perspectivesVoteId)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok) {
+          setVoteEducation(data.education ?? null);
+        }
+      } finally {
+        if (!cancelled) setVoteEducationLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [perspectivesVoteId]);
+
+  useEffect(() => {
+    if (!userAddr) {
+      setCommunityEduAck({});
+      return;
+    }
+    const next: Record<string, boolean> = {};
+    for (const vote of communityVotes) {
+      try {
+        if (localStorage.getItem(communityEduAckKey(vote.id, userAddr)) === "1") {
+          next[vote.id] = true;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setCommunityEduAck(next);
+  }, [userAddr, communityVotes]);
+
+  const acknowledgeCommunityEducation = (voteId: string) => {
+    if (!userAddr) return;
+    try {
+      localStorage.setItem(communityEduAckKey(voteId, userAddr), "1");
+    } catch {
+      /* ignore */
+    }
+    setCommunityEduAck((prev) => ({ ...prev, [voteId]: true }));
+    setPerspectivesVoteId(null);
+    setVoteStatus(null);
   };
 
   const applyReaction = async (
@@ -1552,7 +1652,7 @@ export default function OrgPage() {
     reaction: "like" | "love" | "laugh" | "disagree"
   ) => {
     if (!userAddr) {
-      alert("Connect wallet first");
+      alert("Sign in first");
       return;
     }
 
@@ -1715,6 +1815,9 @@ export default function OrgPage() {
         </div>
       )}
 
+      {!showCreateVoteForm && voteStatus && (
+        <p className="mb-3 text-sm text-zinc-700">{voteStatus}</p>
+      )}
       <div className="space-y-3">
         {votesToShow.length === 0 && <p className="text-gray-400">No community votes yet.</p>}
         {votesToShow.map((vote) => {
@@ -1737,7 +1840,15 @@ export default function OrgPage() {
                   </p>
                 )}
               </div>
-              {shareOrgSlug ? (
+              <div className="flex shrink-0 items-start gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPerspectivesVoteId(vote.id)}
+                  className="px-3 py-1.5 bg-amber-500 text-white rounded hover:bg-amber-600 text-sm"
+                >
+                  {communityEduAck[vote.id] ? "Perspectives" : "Read perspectives"}
+                </button>
+                {shareOrgSlug ? (
                 <OrgItemShareButton
                   orgPathSegment={shareOrgSlug}
                   kind="vote"
@@ -1749,6 +1860,7 @@ export default function OrgPage() {
                   className="shrink-0"
                 />
               ) : null}
+              </div>
             </div>
             {showResults && (
               <div className="mt-3 space-y-1">
@@ -1800,13 +1912,13 @@ export default function OrgPage() {
                     );
                   })}
                 </div>
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => handleCastCommunityVote(vote.id)}
                     className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
                   >
-                    Submit ballot
+                    Vote
                   </button>
                 </div>
               </>
@@ -2082,9 +2194,9 @@ export default function OrgPage() {
 
             <div className="mb-6 text-center text-sm text-gray-400">
               <p className="break-all">
-                {orgAddr ? `Org: ${orgAddr}` : `Community org (off-chain): ${orgKey ?? orgAddress}`}
+                {orgAddr ? "Organization" : "Community organization"}
               </p>
-              <p className="break-all">User: {mounted ? userAddr ?? "Not connected" : "Loading..."}</p>
+              <p className="break-all">{mounted ? (userAddr ? "Signed in" : "Not signed in") : "Loading..."}</p>
             </div>
           </>
         )}
@@ -2149,7 +2261,7 @@ export default function OrgPage() {
                 <h1 className="text-3xl font-bold text-zinc-900">{orgDisplayName || fallbackOrgName}</h1>
                 <p className="mt-2 text-zinc-700 whitespace-pre-wrap">{orgDescriptionText}</p>
                 <p className="mt-3 text-xs text-gray-500 break-all">
-                  {orgAddr ? `Org: ${orgAddr}` : `Community org (off-chain): ${orgKey ?? orgAddress}`}
+                  {orgAddr ? "Organization" : "Community organization"}
                 </p>
               </div>
             </div>
@@ -2863,10 +2975,10 @@ export default function OrgPage() {
                 <h2 className="text-xl mb-3">Manage Members</h2>
                 {offchainId && (
                   <div className="mb-4 rounded border border-zinc-200 bg-white p-3">
-                    <p className="text-sm font-medium text-zinc-900">Vote auditor</p>
+                    <p className="text-sm font-medium text-zinc-900">Counter</p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      Separate wallet that may reveal ballots only while you open verification.
-                      Cannot be your admin wallet.
+                      Appoint someone else to count. They can see who voted how only while verification is open.
+                      They cannot be the person who runs this organization.
                     </p>
                     {offchainOrg?.auditorAddress ? (
                       <p className="mt-2 text-sm text-zinc-700 break-all">
@@ -2880,7 +2992,7 @@ export default function OrgPage() {
                         type="text"
                         value={auditorInput}
                         onChange={(e) => setAuditorInput(e.target.value)}
-                        placeholder="Auditor address"
+                        placeholder="Counter's account"
                         className="min-w-[12rem] flex-1 rounded border border-zinc-200 p-2 text-sm text-zinc-900"
                       />
                       <button
@@ -2899,13 +3011,13 @@ export default function OrgPage() {
                     type="text"
                     value={manageSearch}
                     onChange={(e) => setManageSearch(e.target.value)}
-                    placeholder="Search wallet address..."
+                    placeholder="Search by account"
                     className="flex-1 p-2 border border-zinc-200 rounded bg-white text-zinc-900 placeholder:text-zinc-500"
                   />
                   <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
                 </div>
                 <p className="mt-3 text-sm text-gray-400">
-                  Add/remove actions will be wired to on-chain member/admin management in this tab.
+                  Adding and removing members from this search is not available yet.
                 </p>
               </div>
             )}
@@ -2926,7 +3038,28 @@ export default function OrgPage() {
                     className="mb-4 border-b border-zinc-200 pb-2"
                   >
                     <p className="text-sm break-all">User: {app.user}</p>
-                    <p className="text-gray-400 mb-2">{app.message}</p>
+                    <p className="text-gray-400 mb-2">{app.message || "No message"}</p>
+                    {app.source === "community" && app.answers && app.answers.length > 0 && (
+                      <div className="mb-3 space-y-2 text-sm text-zinc-800">
+                        {app.answers.map((ans) => (
+                          <div key={ans.fieldId}>
+                            <span className="font-medium">{ans.label}: </span>
+                            {ans.type === "file" && ans.value ? (
+                              <a
+                                href={`/api/join-files/${encodeURIComponent(ans.value)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-700 hover:underline"
+                              >
+                                View upload
+                              </a>
+                            ) : (
+                              <span>{ans.value || "—"}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {app.source === "community" ? (
                       <>
@@ -2934,7 +3067,7 @@ export default function OrgPage() {
                           type="button"
                           onClick={async () => {
                             if (!userAddr) {
-                              alert("Connect the admin wallet");
+                              alert("Sign in first");
                               return;
                             }
                             try {
@@ -2984,7 +3117,7 @@ export default function OrgPage() {
                           type="button"
                           onClick={async () => {
                             if (!userAddr) {
-                              alert("Connect the admin wallet");
+                              alert("Sign in first");
                               return;
                             }
                             try {
@@ -3115,7 +3248,7 @@ export default function OrgPage() {
                           type="button"
                           className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-500 opacity-60 cursor-not-allowed"
                           disabled
-                          title="On-chain reject not wired yet"
+                          title="Reject is not available yet"
                         >
                           Reject
                         </button>
@@ -3861,14 +3994,16 @@ export default function OrgPage() {
           </>
         )}
 
-        {view === "settings" && (
+        {view === "settings" && orgKey && (
           <div className="space-y-4">
-            <div className="border border-zinc-200 p-6 rounded bg-zinc-50">
-              <h2 className="text-xl mb-2">Settings</h2>
-              <p className="text-sm text-zinc-600">
-                Configure organization-wide rules here for both community and governance organizations.
-              </p>
-            </div>
+            <OrgSettingsPanel
+              orgId={orgKey}
+              community={orgType === "OFF_CHAIN"}
+              isAdmin={isAdmin}
+              userAddr={userAddr}
+              signMessageAsync={signMessageAsync}
+              onSettingsChange={setOrgSettings}
+            />
             {isAdmin && (
               <div className="border border-zinc-200 p-6 rounded bg-zinc-50">
                 <h3 className="text-lg mb-3">Banner image</h3>
@@ -3983,6 +4118,7 @@ export default function OrgPage() {
               >
                 Yours
               </button>
+              {orgSettings?.citizenInitiativesEnabled === true && (
               <button
                 onClick={() => setPetitionTab("create")}
                 className={`px-4 py-2 ${
@@ -3991,9 +4127,10 @@ export default function OrgPage() {
               >
                 Create
               </button>
+              )}
             </div>
 
-            {petitionTab === "create" && orgAddr && (
+            {petitionTab === "create" && orgAddr && orgSettings?.citizenInitiativesEnabled === true && (
               <div className="mb-8 p-4 border border-zinc-200 rounded bg-zinc-50 text-zinc-900">
                 <h2 className="font-semibold mb-4 text-zinc-900">Create petition for this organization</h2>
                 <input
@@ -4015,7 +4152,7 @@ export default function OrgPage() {
                   disabled={!petitionTitle.trim() || !petitionDescription.trim()}
                   className="mt-2 px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400"
                 >
-                  Create on-chain
+                  Create petition
                 </button>
               </div>
             )}
@@ -4044,7 +4181,7 @@ export default function OrgPage() {
                 />
               ))}
 
-            {petitionTab === "create" && !orgAddr && (
+            {petitionTab === "create" && !orgAddr && orgSettings?.citizenInitiativesEnabled === true && (
               <p className="text-gray-500 text-sm">Invalid organization address.</p>
             )}
           </>
@@ -4105,12 +4242,12 @@ export default function OrgPage() {
                 membership.
               </p>
               <label className="mt-4 block text-sm font-medium text-zinc-800">
-                Search wallets
+                Search people
                 <input
                   type="text"
                   value={inviteQuery}
                   onChange={(e) => setInviteQuery(e.target.value)}
-                  placeholder="0x… or partial address"
+                  placeholder="Name or account"
                   className="mt-1 w-full rounded border border-zinc-200 p-2 text-zinc-900 placeholder:text-zinc-500"
                 />
               </label>
@@ -4120,8 +4257,8 @@ export default function OrgPage() {
                 ) : inviteResults.length === 0 ? (
                   <p className="p-3 text-sm text-zinc-500">
                     {inviteQuery.trim()
-                      ? "No matching wallets (try a full address)."
-                      : "Type to search known wallets, or paste an address."}
+                      ? "No matching people."
+                      : "Type a name or account."}
                   </p>
                 ) : (
                   <ul className="divide-y divide-zinc-200">
@@ -4347,6 +4484,23 @@ export default function OrgPage() {
             </div>
           </div>
         )}
+        <PerspectivesPanel
+          open={Boolean(perspectivesVoteId)}
+          education={voteEducation}
+          loading={voteEducationLoading}
+          onClose={() => setPerspectivesVoteId(null)}
+          showAcknowledge={Boolean(
+            perspectivesVoteId &&
+              userAddr &&
+              orgSettings?.educationBeforeVote !== false &&
+              !communityEduAck[perspectivesVoteId]
+          )}
+          acknowledgeLabel="I have read these"
+          acknowledgePending={false}
+          onAcknowledge={() => {
+            if (perspectivesVoteId) acknowledgeCommunityEducation(perspectivesVoteId);
+          }}
+        />
         </>
         )}
       </div>

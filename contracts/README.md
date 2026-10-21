@@ -30,4 +30,3 @@ Chain id → bytecode (`cast code <addr> --rpc-url http://127.0.0.1:8546`) → s
 | `ReferendumFactory.sol` / `IReferendumFactory.sol` | Deploys referendums so `Organization` stays small |
 | `Referendum.sol` | Ranked ballots, education acknowledgement, first-choice counters |
 | `IIdentityVerifier.sol` / `IdentityMock.sol` | Identity is separate from governance; the mock is local-only |
-| `Voting.sol` | Legacy toy poll. Kept so nothing breaks; not the direction (see `docs/DECISION-LOG.md`) |
