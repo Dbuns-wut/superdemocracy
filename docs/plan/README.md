@@ -18,22 +18,21 @@ The canonical vision and architecture set for collaborators (humans and agents).
 
 Then the books for deeper context, shortest first: [project primer](../books/superdemocracy-project-primer.md) → [condensed book](../books/superdemocracy-the-experiment-condensed.md) → [full manuscript](../books/superdemocracy-full-manuscript.md).
 
-Open questions and unfinished work: [todo.md](todo.md).
+Open work lists live in Notion. The repo pointer is [todo.md](todo.md).
 
 | File | What it is |
 |------|------------|
 | [constitution.md](constitution.md) | Project constitution — highest authority |
 | [north-star.md](north-star.md) | What SuperDemocracy is trying to become |
-| [governance-principles.md](governance-principles.md) | Durable governance principles (v0.2) |
+| [governance-principles.md](governance-principles.md) | Durable governance principles (v0.3) |
 | [master-plan.md](master-plan.md) | The single master document. If you open one file, open this one |
 | [system-specification.md](system-specification.md) | What the software must do |
 | [security-architecture.md](security-architecture.md) | Privacy and verification rules |
 | [governance-measurement.md](governance-measurement.md) | How we tell whether governance is getting better |
 | [research-and-decisions.md](research-and-decisions.md) | Research threads and the original decisions 001–014 |
 | [../DECISION-LOG.md](../DECISION-LOG.md) | Accepted decisions and the reasoning behind them |
-| [todo.md](todo.md) | Open questions and work not yet done |
+| [todo.md](todo.md) | Pointer to the Notion launch checklist and parked future features |
 | [../books/](../books/README.md) | Founding manuscript, condensed book, project primer |
-| [../reference/](../reference/) | Short reference patterns (AI contract guardrails, civic platform architecture rule) |
 
 ## Authority when documents conflict
 

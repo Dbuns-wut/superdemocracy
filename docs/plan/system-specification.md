@@ -2,7 +2,7 @@
 
 **Status:** Living engineering specification.  
 **Authority:** below the [Constitution](constitution.md), [principles](governance-principles.md), and [master plan](master-plan.md); above the code. When this document and the code disagree, record it in [../DECISION-LOG.md](../DECISION-LOG.md) and decide — do not assume the code is right.  
-**Current priority:** Connect the frontend to live petition data without breaking the established contract architecture.
+**Current priority:** On the launch checklist, not in this file. See [todo.md](todo.md).
 
 ## 1. Product Model
 Superdemocracy is a governance platform with two broad organization modes:
@@ -111,7 +111,7 @@ Required principles:
 - support future counting methods
 - admins cannot modify votes or tallies
 
-Future methods may include ranked choice, approval, first-past-the-post, Condorcet, quadratic or delegated mechanisms where appropriate. These are capabilities/research directions, not a requirement to enable every method at once.
+Future counting methods are on the parked list. See [todo.md](todo.md). They are research directions, not a requirement to enable every method at once.
 
 ## 6. Education Gate
 Users are required to open or acknowledge the relevant educational information before casting a ballot. This is a core Superdemocracy gate; it is on everywhere by default.
@@ -182,20 +182,9 @@ Do not repeatedly retry without identifying the root cause.
 ## 11. Forward Compatibility
 Do not optimize V1 in ways that make future architecture impossible.
 
-Future capabilities include:
-- ranked-choice counting
-- switchable counting methods
-- topic-specific liquid delegation
-- Expert Qualification as the soft default for delegation eligibility
-- immediate delegation revocation
-- multiple simultaneous petitions
-- real identity provider integration
-- privacy-preserving demographics/research data
-- deliberation records
-- prediction/forecasting data
-- AI-assisted evidence and deliberation
+Parked future features are listed outside this repo. See [todo.md](todo.md).
 
 ## 12. Current Engineering Goal
-**Connect the frontend to live petition data** without breaking the contract architecture. `app/petitions/page.tsx` already reads live chain logs; finish and stabilize that path.
+The current goal is on the launch checklist. See [todo.md](todo.md).
 
-Do not expand scope until that path is stable. The tree already contains community orgs, messaging, invites, and encrypted community votes — that surface stays (D-2026-09-09-12). Open items: [todo.md](todo.md).
+The tree already contains community orgs, messaging, invites, and encrypted community votes — that surface stays (D-2026-09-09-12).

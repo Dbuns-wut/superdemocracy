@@ -50,7 +50,7 @@ See the README for optional Postgres and contracts.
 
 ## Decision log
 
-Add an entry to [docs/DECISION-LOG.md](docs/DECISION-LOG.md) when a future contributor would reasonably ask "why does SuperDemocracy work this way?" Minor implementation changes belong in Git history, not the log. Open questions live in [docs/plan/todo.md](docs/plan/todo.md).
+Add an entry to [docs/DECISION-LOG.md](docs/DECISION-LOG.md) when a future contributor would reasonably ask "why does SuperDemocracy work this way?" Minor implementation changes belong in Git history, not the log. Open questions are indexed from [docs/plan/todo.md](docs/plan/todo.md), which points at the Notion lists.
 
 ## License
 

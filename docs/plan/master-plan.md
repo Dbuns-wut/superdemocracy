@@ -1,7 +1,7 @@
 # SUPERDEMOCRACY — MASTER PLAN
 
 **Author / Founder:** Dustin Murray  
-**Purpose:** Consolidated implementation plan for the Superdemocracy vision, governance philosophy, product architecture, security direction, research, engineering rules, and roadmap.
+**Purpose:** Consolidated implementation plan for the Superdemocracy vision, governance philosophy, product architecture, security direction, research, and engineering rules. Launch and parked lists are not in this file.
 
 **Authority:** The Superdemocracy Project Constitution is higher authority than this document. Significant accepted design decisions are recorded in `/docs/DECISION-LOG.md`.
 
@@ -359,158 +359,19 @@ The current architecture was intentionally designed to preserve ranked ballots a
 
 ---
 
-## 14. CURRENT CONTRACT SYSTEM
+## 14. CURRENT CONTRACTS, FRONTEND, AND LOCAL SETUP
 
-### IdentityMock.sol
-- `setVerified(address,bool)`
-- `isVerified(address)`
-
-### Organization.sol
-Contains members/admins and petition governance.
-
-Petition state includes title, description, threshold, verifiedCount, approval/rejection state, and referendum launch state.
-
-Required flow:
-- only verified members create petitions
-- verified members can sign
-- signatures count only if verified
-- threshold must be met
-- admin approval can occur before launch
-- launch requires approved, threshold met, not rejected, not already launched
-- admins must be members
-- pre-approval signatures must be re-verified after approval
-
-### Referendum.sol
-Constructor:
-`(string title, string description, string[] options, uint256 startTime, uint256 endTime, address identityVerifier)`
-
-Ballots must support ranked choices even if the current UI uses a simpler interface.
+What the software must do — contracts, petition rules, the local chain, deployment, and the debugging order — is in [system-specification.md](system-specification.md). Follow that file where an older summary here disagreed with it. Referendum construction includes the organization address (D-2026-09-09-11).
 
 ---
 
-## 15. FRONTEND / CURRENT ENGINEERING STATE
+## 15. ROADMAP
 
-### Stack
-- Next.js 16 + App Router
-- React
-- wagmi
-- viem
-- Tailwind
-- Solidity / Foundry
-- Anvil
-
-### Environment Rules
-- contract addresses live in `.env.local`
-- never hardcode addresses
-- after redeployment, remove `.next` and rebuild/restart
-
-### Current recorded local state
-- RPC: `http://127.0.0.1:8546`
-- Chain ID: `31338`
-- frontend: `localhost:3000`
-
-Verify runtime state before relying on these values.
-
-### Current Goal
-**Connect the frontend to live petition data.**
-
-Do not turn this into a broad architecture rewrite. Stabilize the live petition path first.
+Launch work and parked future features are not listed in this file. See [todo.md](todo.md).
 
 ---
 
-## 16. DEPLOYMENT AND DEBUGGING RULES
-
-### Deployment
-- deployment uses bytecode + `cast send` through the deployment script
-- **never use `forge create`**
-- do not redeploy unless evidence shows it is required
-- always verify bytecode first
-
-Verification:
-`cast code <contract_address> --rpc-url http://127.0.0.1:8546`
-
-After changing addresses:
-`rm -rf .next`
-
-### Debugging Order
-1. chain ID / Anvil instance
-2. contract bytecode
-3. contract storage/state
-4. ABI mismatch
-5. frontend read/write logic
-6. frontend caching
-7. redeployment last
-
-Avoid loops. Diagnose the root cause before retrying.
-
----
-
-## 17. ROADMAP
-
-### Phase 1 — Stable Governance Core
-- live petition data
-- petition feed
-- verified membership/signing
-- threshold handling
-- approval/launch
-- referendum UX
-- education acknowledgement
-
-### Phase 2 — Evidence / Information Layer
-- Quick Debrief
-- PROS vs CONS / option comparison
-- evidence pages
-- source-document references
-- provenance
-
-### Phase 3 — Deliberation
-- lightweight structured deliberation record
-- optional integration with suitable external tools
-- later native deliberation if justified
-
-### Phase 4 — Better Voting
-- robust ranked-choice ballots
-- switchable tally methods
-- independently verifiable results
-
-### Phase 5 — Identity / Privacy
-- production identity provider
-- anonymous credentials
-- identity/ballot separation
-- end-to-end verification
-- coercion resistance
-- privacy-preserving research data
-
-### Phase 6 — Liquid Democracy
-- separate DelegationRegistry
-- topic-specific delegation
-- instant revocation/editing
-- Expert Qualification as the soft default for delegation eligibility
-
-### Phase 7 — Forecasting / Governance Measurement
-- optional pre-vote prediction
-- lightweight governance feedback
-- satisfaction / trust / perceived voice / information-quality measurement
-- participation retained and interpreted in context
-- case-specific experiments comparing governance methods
-- organization-defined policy outcome measurement where appropriate
-- longitudinal governance research
-
-### Phase 8 — AI Governance Assistance
-- evidence curation
-- source summarization
-- argument mapping
-- deliberation assistance
-- forecasting assistance
-- administrative automation
-
-### Phase 9 — Optional AI Authority Research
-Long-term research only.
-
-Organizations decide for themselves whether AI may ever receive delegated political authority. Superdemocracy may research or support such capabilities as optional organization-controlled features, but AI cannot create, enlarge, or perpetuate its own authority.
----
-
-## 18. LOCAL-FIRST EXPERIMENTATION
+## 16. LOCAL-FIRST EXPERIMENTATION
 
 The platform should prove itself at smaller scales before being trusted with larger ones. Potential early users include:
 - families / small groups
@@ -528,34 +389,13 @@ The aim is not to force one political system on everyone. If the platform works,
 
 ---
 
-## 19. GOVERNANCE RESEARCH PROGRAM
+## 17. GOVERNANCE RESEARCH PROGRAM
 
-The project should continuously study the history and science of collective decision-making, including:
-- Socrates, Plato, Aristotle
-- Roman republicanism
-- Madison / constitutional checks
-- Montesquieu
-- Mill
-- Tocqueville
-- Hayek
-- Ostrom
-- public choice
-- social choice
-- behavioral economics
-- deliberative democracy
-- sortition
-- liquid democracy
-- Swiss semi-direct democracy
-- Taiwan / vTaiwan
-- Estonia
-- prediction markets
-- AI governance
-
-Research should challenge the project rather than merely confirm it.
+The project should keep studying collective decision-making, and that research should challenge the project rather than merely confirm it. The open threads and the evidence discipline are in [research-and-decisions.md](research-and-decisions.md).
 
 ---
 
-## 20. DECISION DISCIPLINE
+## 18. DECISION DISCIPLINE
 
 Every major architecture change should answer:
 1. **WHAT** are we changing?
@@ -568,7 +408,7 @@ Do not silently turn a hypothesis from the book into a permanent technical requi
 
 ---
 
-## 21. AUTHORITY / DOCUMENT ORGANIZATION
+## 19. AUTHORITY / DOCUMENT ORGANIZATION
 
 These documents live in `docs/plan/` so the project does not become scattered. Authority order and the full index are in [README.md](README.md).
 
@@ -581,16 +421,15 @@ These documents live in `docs/plan/` so the project does not become scattered. A
 - [governance-measurement.md](governance-measurement.md) — how we measure whether governance is getting better
 - [research-and-decisions.md](research-and-decisions.md) — evidence, hypotheses, and the original decisions 001–014
 - [../DECISION-LOG.md](../DECISION-LOG.md) — running record of accepted decisions
-- [todo.md](todo.md) — open questions and work not yet done
+- [todo.md](todo.md) — pointer to the Notion launch checklist and parked future features
 - [../books/](../books/) — the founding manuscript, condensed book, and project primer
-- [../reference/](../reference/) — short reference patterns (AI contract guardrails, civic platform architecture rule)
 - [../../CONTRIBUTING.md](../../CONTRIBUTING.md) — rules for human and AI engineers
 
 Local Anvil account files and other dev-only credentials must never be committed to Git.
 
 ---
 
-## 22. FINAL PRINCIPLES
+## 20. FINAL PRINCIPLES
 
 **People remain sovereign.**
 

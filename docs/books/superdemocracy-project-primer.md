@@ -257,25 +257,11 @@ Administrators may administer the process. They must not gain the ability to rew
 
 ## 10. The Current Engineering Direction
 
-The current local development system uses:
+Exact engineering requirements are in the [system specification](../plan/system-specification.md). That specification, the [master plan](../plan/master-plan.md), the [security architecture](../plan/security-architecture.md), and the [governance principles](../plan/governance-principles.md) override this primer.
 
-- Anvil for the local blockchain;
-- Solidity contracts;
-- Foundry tooling;
-- deployment through `cast send` and bytecode automation;
-- Next.js 16;
-- wagmi;
-- viem;
-- MetaMask;
-- contract addresses stored in environment configuration rather than hardcoded frontend values.
+Sign-in does not require a browser wallet (D-2026-09-25-01). An injected wallet may still be used by people who already have one.
 
-Core contracts include the identity layer, organization governance, petitions, and referendums.
-
-Current petition rules require verified membership, verified signatures, thresholds, approval state, rejection state, and explicit referendum-launch conditions.
-
-Future architecture must remain compatible with multiple simultaneous petitions, ranked-choice voting, switchable counting methods, topic-specific delegation, stronger identity, and later privacy/security upgrades.
-
-For exact current engineering requirements, the canonical **Master Plan**, **System Specification**, **Security Architecture**, and **Governance Principles** override this primer.
+Parked future features are not listed here. See [todo.md](../plan/todo.md).
 
 ---
 

@@ -310,7 +310,7 @@ This is the north-star three-level architecture inside the existing name. It is 
 
 **Explicit departure (Constitution Article X Section 2):** Education Before Vote remains a core gate and is on by default. It is optional **for community orgs only**. Canonical wording was amended 2026-09-10 after Chief Architect approval.
 
-**Status:** Accepted. Canonical documents amended. Community-org UI gate not yet implemented. See [plan/todo.md](plan/todo.md).
+**Status:** Accepted. Canonical documents amended. The community-org UI gate is in org settings, and the launch checklist marks it done. See [plan/todo.md](plan/todo.md).
 
 **Source:** Chief Architect decision.
 
@@ -362,7 +362,7 @@ This is the north-star three-level architecture inside the existing name. It is 
 
 **Why:** The flow exists in `Organization.sol`, but most real organizations do not allow member-initiated proposals today. Forcing it on would misrepresent how they govern.
 
-**Status:** Accepted. Documented only; not being built now so the current work is not sidetracked.
+**Status:** Accepted. On 2026-09-09 this was documented only, so that day's work would not be sidetracked. Org settings now include the citizen-initiative and Education Before Vote toggles.
 
 **Source:** Chief Architect decision.
 
