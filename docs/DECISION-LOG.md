@@ -37,6 +37,19 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 # DECISIONS
 
+## 38. Pros vs Cons Sits Inside the Quick Debrief (D-2026-10-28-01)
+**Date:** 2026-10-28
+
+**Decision:** Pros vs Cons sits inside the Quick Debrief. The North Star and the Master Plan win over decision 32 on that placement. Decision 32's separate Pros vs Cons step is superseded. The member-facing name stays Perspectives.
+
+**Why:** The Chief Architect decided this on 2026-10-28. The decision log records amendments to the North Star and the Master Plan. It does not outrank them.
+
+**Status:** Accepted.
+
+**Source:** Chief Architect, 2026-10-28.
+
+---
+
 ## 37. Signup requires a password (D-2026-10-20-01)
 **Date:** 2026-10-20
 
@@ -124,6 +137,8 @@ Current code: `signPetition` increments `verifiedCount` once and does not re-che
 ## 32. Perspectives Maps Onto The Three Information Levels (D-2026-09-16-01)
 **Date:** 2026-09-16
 
+> Superseded by 38. Pros vs Cons Sits Inside the Quick Debrief (D-2026-10-28-01). This applies to the separate Pros vs Cons step. The Perspectives name remains.
+
 **Decision:** **Perspectives** remains the member-facing name. Inside that panel, content is ordered as:
 
 1. **Quick Debrief** ? what / why / known / disputed / uncertain
@@ -135,7 +150,7 @@ This is the north-star three-level architecture inside the existing name. It is 
 
 **Why:** D-2026-09-09-06 required mapping without losing "Perspectives". The running app now shows that mapping so it can be confirmed.
 
-**Status:** Accepted as the implementation mapping; confirm visually.
+**Status:** The separate Pros vs Cons step is superseded by 38 (D-2026-10-28-01). The Perspectives name remains.
 
 **Source:** Chief Architect decision D-2026-09-09-06 + this implementation.
 

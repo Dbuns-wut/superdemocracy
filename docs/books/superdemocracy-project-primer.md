@@ -249,7 +249,7 @@ The experience can evolve rapidly without silently changing the rules.
 
 Identity also remains separate from governance so a future identity verifier can replace the current mock layer without rewriting the political system.
 
-Raw ballot preservation should remain separate from counting logic so future counting methods can evolve without destroying history.
+Store auditor-visible sealed ballots, separate from the tally (D-2026-10-09-01).
 
 Administrators may administer the process. They must not gain the ability to rewrite votes or tallies.
 

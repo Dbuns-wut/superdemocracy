@@ -100,10 +100,10 @@ Current/future ballot architecture must preserve ranked ballots even when the UI
 - Citizen-initiative flows (petition → approval → launch) are an organization setting, off for orgs that do not allow member initiatives (D-2026-09-09-01).
 
 ## 5. Voting Architecture
-Raw ballots are preserved separately from result calculation.
+Store auditor-visible sealed ballots, separate from the tally (D-2026-10-09-01).
 
 Required principles:
-- store raw ballots
+- store auditor-visible sealed ballots
 - never destroy vote history
 - do not put complex tally logic inside `vote()`
 - avoid loops over voters
@@ -119,7 +119,7 @@ Users are required to open or acknowledge the relevant educational information b
 - **Governance organizations (on-chain referendums):** `Referendum.acknowledgeEducation()` is required before `vote()`. The contract enforces it independently of the UI.
 - **Community organizations (off-chain):** the gate is a UI gate only — no contract involvement. It is on by default and an org admin may turn it off in the org's settings (D-2026-09-09-05).
 
-The member-facing information tab is called **Perspectives**; it is where the Pros vs Cons layer lives (D-2026-09-09-06).
+The member-facing name is **Perspectives**. Pros vs Cons sits inside the Quick Debrief (D-2026-10-28-01).
 
 The gate is not intended to certify competence or comprehension.
 
