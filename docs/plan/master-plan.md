@@ -421,7 +421,7 @@ These documents live in `docs/plan/` so the project does not become scattered. A
 - [governance-measurement.md](governance-measurement.md) — how we measure whether governance is getting better
 - [research-and-decisions.md](research-and-decisions.md) — evidence, hypotheses, and the original decisions 001–014
 - [../DECISION-LOG.md](../DECISION-LOG.md) — running record of accepted decisions
-- [todo.md](todo.md) — pointer to the Notion launch checklist and parked future features
+- [todo.md](todo.md) — pointer to the project whiteboard (Superdemocracy launch lists)
 - [../books/](../books/) — the founding manuscript, condensed book, and project primer
 - [../../CONTRIBUTING.md](../../CONTRIBUTING.md) — rules for human and AI engineers
 

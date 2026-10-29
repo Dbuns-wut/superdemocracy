@@ -18,7 +18,7 @@ The canonical vision and architecture set for collaborators (humans and agents).
 
 Then the books for deeper context, shortest first: [project primer](../books/superdemocracy-project-primer.md) → [condensed book](../books/superdemocracy-the-experiment-condensed.md) → [full manuscript](../books/superdemocracy-full-manuscript.md).
 
-Open work lists live in Notion. The repo pointer is [todo.md](todo.md).
+Open work lists live on the project whiteboard. The repo pointer is [todo.md](todo.md).
 
 | File | What it is |
 |------|------------|
@@ -31,7 +31,7 @@ Open work lists live in Notion. The repo pointer is [todo.md](todo.md).
 | [governance-measurement.md](governance-measurement.md) | How we tell whether governance is getting better |
 | [research-and-decisions.md](research-and-decisions.md) | Research threads and the original decisions 001–014 |
 | [../DECISION-LOG.md](../DECISION-LOG.md) | Accepted decisions and the reasoning behind them |
-| [todo.md](todo.md) | Pointer to the Notion launch checklist and parked future features |
+| [todo.md](todo.md) | Pointer to the project whiteboard (Superdemocracy launch lists) |
 | [../books/](../books/README.md) | Founding manuscript, condensed book, project primer |
 
 ## Authority when documents conflict
