@@ -36,15 +36,18 @@ Open work lists live on the project whiteboard. The repo pointer is [todo.md](to
 
 ## Authority when documents conflict
 
-From the Constitution, Article XI:
+From the Constitution, Article XI, as updated by D-2026-10-29-01:
 
 1. **Constitution**
 2. **Governance principles**
-3. **Master plan** and **system specification**
-4. Founding manuscript
-5. **Decision log**
-6. **Implementation** and technical documentation
-7. Historical prompts, chats, drafts, superseded documents
+3. **Decision log** — a later accepted entry wins over the North Star and the Master Plan
+4. **North Star** and **Master Plan** — the starting plan; they can become outdated
+5. **System specification**
+6. Founding manuscript
+7. **Implementation** and technical documentation
+8. Historical prompts, chats, drafts, superseded documents
+
+The North Star and the Master Plan are the original plan. If a proposed decision conflicts with either, warn the Chief Architect before recording it. If they go ahead, the decision log entry holds the discussion summary and the reasons.
 
 The code describes what *exists*. It does not outrank the vision. When code and a document disagree, record it in [../DECISION-LOG.md](../DECISION-LOG.md) and decide — never silently pick a side, and never delete working features to match a narrower document.
 

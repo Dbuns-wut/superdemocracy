@@ -37,14 +37,29 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 # DECISIONS
 
+## 39. A Logged Decision Can Override the Starting Plan (D-2026-10-29-01)
+**Date:** 2026-10-29
+
+**Decision:** The North Star and the Master Plan are the starting plan. They can become outdated. A later decision log entry wins over them. Before recording a decision that conflicts with either, warn the Chief Architect so there is time to think again. If the Chief Architect goes ahead, that entry holds the discussion summary and the reasons for overriding them.
+
+**Why:** Entry 38 was drafted to say the North Star and Master Plan win over the decision log. On 2026-10-29 the Chief Architect said that sentence was wrong. Those two documents are the original plan, not a veto. The discussion was: look at decisions 32 and 38, because the "they win" line might be a mistake; then the correction above.
+
+**Status:** Accepted. Corrects the authority sentence in entry 38. The Pros vs Cons placement in entry 38 remains. Updates Article XI and decisions 14 and 17 on this point.
+
+**Source:** Chief Architect, 2026-10-29.
+
+---
+
 ## 38. Pros vs Cons Sits Inside the Quick Debrief (D-2026-10-28-01)
 **Date:** 2026-10-28
 
-**Decision:** Pros vs Cons sits inside the Quick Debrief. The North Star and the Master Plan win over decision 32 on that placement. Decision 32's separate Pros vs Cons step is superseded. The member-facing name stays Perspectives.
+> The authority sentence in the first draft of this entry is corrected by 39. A Logged Decision Can Override the Starting Plan (D-2026-10-29-01). The placement remains.
 
-**Why:** The Chief Architect decided this on 2026-10-28. The decision log records amendments to the North Star and the Master Plan. It does not outrank them.
+**Decision:** Pros vs Cons sits inside the Quick Debrief. Decision 32's separate Pros vs Cons step is superseded. The member-facing name stays Perspectives.
 
-**Status:** Accepted.
+**Why:** The Chief Architect chose this placement on 2026-10-28. It matches the starting plan. The first draft also said the North Star and Master Plan win over the decision log. That rule was a mistake. Entry 39 is the rule.
+
+**Status:** Accepted for the placement.
 
 **Source:** Chief Architect, 2026-10-28.
 
@@ -360,6 +375,8 @@ This is the north-star three-level architecture inside the existing name. It is 
 ## 17. In-Repo Document Authority Follows the Constitution (D-2026-09-09-02)
 **Date:** 2026-09-09
 
+> The rank of the decision log against the North Star and Master Plan is updated by 39. A Logged Decision Can Override the Starting Plan (D-2026-10-29-01). Code still does not outrank the vision.
+
 **Decision:** The in-repo authority order ([plan/README.md](plan/README.md)) is the Constitution's order (Article XI). The previous in-repo ordering that ranked "current code" first is superseded. Code describes what *exists*; it does not *outrank* the vision documents. Code/doc conflicts are logged here and decided, never resolved by assuming the code is right.
 
 **Why:** The handoff package is the current canonical set and outranks the older plan documents.
@@ -400,6 +417,8 @@ Example use: disabling Expert Qualification could warn that popular or charismat
 
 ## 14. Canonical Document Hierarchy
 **Date:** 2026-09-08
+
+> The rank of the decision log against the Master Plan is updated by 39. A Logged Decision Can Override the Starting Plan (D-2026-10-29-01).
 
 **Decision:** When project documents conflict, use this order:
 
@@ -619,3 +638,5 @@ If the answer is important to the philosophy, security, architecture, or governa
 If the answer is merely "because this React component was easier to write this way," Git history is enough.
 
 Put the new entry at the top of the list. Number it with the next integer. Leave every older number where it is. If the new entry replaces an older one, add the superseded footnote to that older entry.
+
+The North Star and the Master Plan are the starting plan. A later entry wins over them (D-2026-10-29-01). If a proposed decision conflicts with either, warn the Chief Architect before writing the entry. If they go ahead, the entry includes the discussion summary and the reasons for overriding the starting plan.

@@ -324,11 +324,14 @@ Where project documents conflict, the following order of authority applies:
 
 1. **Superdemocracy Project Constitution**
 2. **Governance Principles**
-3. **Master Plan and current System Specification**
-4. **Founding Superdemocracy Manuscript**
-5. **Decision Log**
-6. **Current implementation and technical documentation**
-7. **Historical prompts, chats, drafts, and superseded documents**
+3. **Decision Log** — a later accepted entry wins over the North Star and the Master Plan
+4. **North Star** and **Master Plan** — the starting plan; they can become outdated
+5. **Current System Specification**
+6. **Founding Superdemocracy Manuscript**
+7. **Current implementation and technical documentation**
+8. **Historical prompts, chats, drafts, and superseded documents**
+
+The North Star and the Master Plan are the original plan. Before a decision that conflicts with either of them is recorded, the Chief Architect is warned and given time to think again. If the Chief Architect goes ahead, the decision log entry holds the discussion summary and the reasons (D-2026-10-29-01).
 
 The founding manuscript remains the project's intellectual foundation and an important record of the research and reasoning that produced Superdemocracy.
 
