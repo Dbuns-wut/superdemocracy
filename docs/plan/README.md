@@ -22,7 +22,7 @@ Open work lists live on the project whiteboard. The repo pointer is [todo.md](to
 
 | File | What it is |
 |------|------------|
-| [constitution.md](constitution.md) | Project constitution — highest authority |
+| [constitution.md](constitution.md) | Project constitution. A starting document (D-2026-10-29-02) |
 | [north-star.md](north-star.md) | What SuperDemocracy is trying to become |
 | [governance-principles.md](governance-principles.md) | Durable governance principles (v0.3) |
 | [master-plan.md](master-plan.md) | The single master document. If you open one file, open this one |
@@ -36,18 +36,16 @@ Open work lists live on the project whiteboard. The repo pointer is [todo.md](to
 
 ## Authority when documents conflict
 
-From the Constitution, Article XI, as updated by D-2026-10-29-01:
+From the Constitution, Article XI, as updated by D-2026-10-29-02:
 
-1. **Constitution**
-2. **Governance principles**
-3. **Decision log** — a later accepted entry wins over the North Star and the Master Plan
-4. **North Star** and **Master Plan** — the starting plan; they can become outdated
-5. **System specification**
-6. Founding manuscript
-7. **Implementation** and technical documentation
-8. Historical prompts, chats, drafts, superseded documents
+1. **Decision log** — a later accepted entry wins over the starting documents, after a warning and an explicit decision to override
+2. **Starting documents** — Constitution, governance principles, North Star, and Master Plan. They can become outdated
+3. **System specification**, security architecture, and governance measurement
+4. Founding manuscript
+5. **Implementation** and technical documentation
+6. Historical prompts, chats, drafts, superseded documents
 
-The North Star and the Master Plan are the original plan. If a proposed decision conflicts with either, warn the Chief Architect before recording it. If they go ahead, the decision log entry holds the discussion summary and the reasons.
+If a proposed decision conflicts with a starting document, warn the Chief Architect. The Chief Architect decides whether to override it. If the override goes ahead, the decision log entry holds the discussion summary and the reasons, and the clause is footnoted "amended by decision #x".
 
 The code describes what *exists*. It does not outrank the vision. When code and a document disagree, record it in [../DECISION-LOG.md](../DECISION-LOG.md) and decide — never silently pick a side, and never delete working features to match a narrower document.
 

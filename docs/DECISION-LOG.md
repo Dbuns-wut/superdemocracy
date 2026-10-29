@@ -37,8 +37,23 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 # DECISIONS
 
+## 40. Constitution and Principles Use the Same Override Rule (D-2026-10-29-02)
+**Date:** 2026-10-29
+
+**Decision:** The Constitution and the governance principles are treated the same as the North Star and the Master Plan. They are starting documents. They can become outdated. A later decision log entry wins over any of them. Before recording a decision that conflicts with one of them, warn the Chief Architect. The Chief Architect then decides whether to override it. If the override goes ahead, that decision log entry holds the discussion summary and the reasons. When the starting documents are numbered as a codebook, the overridden clause gets a footnote: "amended by decision #x".
+
+**Why:** Decision 39 left the Constitution and the governance principles above the decision log. On 2026-10-29 the Chief Architect said they are the same kind of starting plan as the North Star and the Master Plan. There are also too many overlapping planning documents. Their purposes are listed for a later pass that keeps one codebook and numbers its clauses. This entry does not merge or delete those documents.
+
+**Status:** Accepted. Extends decision 39. The Pros vs Cons placement in decision 38 remains.
+
+**Source:** Chief Architect, 2026-10-29.
+
+---
+
 ## 39. A Logged Decision Can Override the Starting Plan (D-2026-10-29-01)
 **Date:** 2026-10-29
+
+> Extended by 40. Constitution and Principles Use the Same Override Rule (D-2026-10-29-02). The Constitution and the governance principles are in the same class as the North Star and the Master Plan.
 
 **Decision:** The North Star and the Master Plan are the starting plan. They can become outdated. A later decision log entry wins over them. Before recording a decision that conflicts with either, warn the Chief Architect so there is time to think again. If the Chief Architect goes ahead, that entry holds the discussion summary and the reasons for overriding them.
 
@@ -639,4 +654,4 @@ If the answer is merely "because this React component was easier to write this w
 
 Put the new entry at the top of the list. Number it with the next integer. Leave every older number where it is. If the new entry replaces an older one, add the superseded footnote to that older entry.
 
-The North Star and the Master Plan are the starting plan. A later entry wins over them (D-2026-10-29-01). If a proposed decision conflicts with either, warn the Chief Architect before writing the entry. If they go ahead, the entry includes the discussion summary and the reasons for overriding the starting plan.
+The Constitution, the governance principles, the North Star, and the Master Plan are the starting documents (D-2026-10-29-02). A later entry wins over them. If a proposed decision conflicts with any of them, warn the Chief Architect before writing the entry. The Chief Architect then decides whether to override. If the override goes ahead, the entry includes the discussion summary and the reasons. The overridden clause gets a footnote: "amended by decision #x".

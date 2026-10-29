@@ -1,7 +1,7 @@
 # SUPERDEMOCRACY — SYSTEM SPECIFICATION
 
 **Status:** Living engineering specification.  
-**Authority:** below the [Constitution](constitution.md) and [principles](governance-principles.md). The [master plan](master-plan.md) is the starting plan. A later entry in [../DECISION-LOG.md](../DECISION-LOG.md) wins over that plan (D-2026-10-29-01). When this document and the code disagree, record it in the decision log and decide — do not assume the code is right.  
+**Authority:** The [Constitution](constitution.md), [principles](governance-principles.md), [north star](north-star.md), and [master plan](master-plan.md) are the starting documents. A later entry in [../DECISION-LOG.md](../DECISION-LOG.md) wins over them after a warning (D-2026-10-29-02). When this document and the code disagree, record it in the decision log and decide — do not assume the code is right.  
 **Current priority:** On the launch checklist, not in this file. See [todo.md](todo.md).
 
 ## 1. Product Model

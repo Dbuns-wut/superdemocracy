@@ -322,16 +322,14 @@ GitHub commits, issues, pull-request reviews, and comments remain useful impleme
 
 Where project documents conflict, the following order of authority applies:
 
-1. **Superdemocracy Project Constitution**
-2. **Governance Principles**
-3. **Decision Log** — a later accepted entry wins over the North Star and the Master Plan
-4. **North Star** and **Master Plan** — the starting plan; they can become outdated
-5. **Current System Specification**
-6. **Founding Superdemocracy Manuscript**
-7. **Current implementation and technical documentation**
-8. **Historical prompts, chats, drafts, and superseded documents**
+1. **Decision Log** — a later accepted entry wins over the starting documents, after a warning and an explicit decision to override
+2. **Starting documents** — this Constitution, the Governance Principles, the North Star, and the Master Plan. They can become outdated
+3. **Current System Specification**, security architecture, and governance measurement
+4. **Founding Superdemocracy Manuscript**
+5. **Current implementation and technical documentation**
+6. **Historical prompts, chats, drafts, and superseded documents**
 
-The North Star and the Master Plan are the original plan. Before a decision that conflicts with either of them is recorded, the Chief Architect is warned and given time to think again. If the Chief Architect goes ahead, the decision log entry holds the discussion summary and the reasons (D-2026-10-29-01).
+Before a decision that conflicts with a starting document is recorded, the Chief Architect is warned and decides whether to override it. If the override goes ahead, the decision log entry holds the discussion summary and the reasons. The overridden clause is footnoted "amended by decision #x" (D-2026-10-29-02).
 
 The founding manuscript remains the project's intellectual foundation and an important record of the research and reasoning that produced Superdemocracy.
 

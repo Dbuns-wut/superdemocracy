@@ -3,7 +3,7 @@
 **Author / Founder:** Dustin Murray  
 **Purpose:** Consolidated implementation plan for the Superdemocracy vision, governance philosophy, product architecture, security direction, research, and engineering rules. Launch and parked lists are not in this file.
 
-**Authority:** The Superdemocracy Project Constitution is higher authority than this document. This file is the starting plan. A later entry in `/docs/DECISION-LOG.md` wins over it after a warning to the Chief Architect (D-2026-10-29-01).
+**Authority:** This file is a starting document, along with the Constitution, the governance principles, and the North Star. A later entry in `/docs/DECISION-LOG.md` wins over them after a warning to the Chief Architect (D-2026-10-29-02).
 
 ---
 
@@ -412,10 +412,10 @@ Do not silently turn a hypothesis from the book into a permanent technical requi
 
 These documents live in `docs/plan/` so the project does not become scattered. Authority order and the full index are in [README.md](README.md).
 
-- [constitution.md](constitution.md) — project constitution; highest authority
-- [north-star.md](north-star.md) — short starting vision. A later decision log entry can override it (D-2026-10-29-01)
-- [governance-principles.md](governance-principles.md) — durable governance principles
-- [master-plan.md](master-plan.md) — this file, the starting plan. A later decision log entry wins over it (D-2026-10-29-01)
+- [constitution.md](constitution.md) — project constitution. A starting document (D-2026-10-29-02)
+- [north-star.md](north-star.md) — short starting vision (D-2026-10-29-02)
+- [governance-principles.md](governance-principles.md) — durable governance principles. A starting document (D-2026-10-29-02)
+- [master-plan.md](master-plan.md) — this file, a starting document. A later decision log entry wins over it (D-2026-10-29-02)
 - [system-specification.md](system-specification.md) — intended software behavior and architecture
 - [security-architecture.md](security-architecture.md) — security and privacy requirements
 - [governance-measurement.md](governance-measurement.md) — how we measure whether governance is getting better
