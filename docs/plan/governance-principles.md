@@ -310,7 +310,7 @@ Examples:
 - AI summaries must not erase source provenance;
 - delegation must not destroy historical ballots;
 - administrators must not gain power to alter votes or tallies;
-- a new counting method must not require destruction of raw ballot history.
+- a new counting method must not require destruction of the ballot record (D-2026-10-09-01).
 
 The system should remain forward-compatible wherever practical.
 

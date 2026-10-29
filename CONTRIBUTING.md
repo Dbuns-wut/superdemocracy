@@ -31,7 +31,7 @@ See the README for optional Postgres and contracts.
 
 - Rules must not depend on frontend behavior.
 - Identity stays separate from governance.
-- Preserve raw ballots. Keep tally logic separate from ballot submission; do not put complex tally logic inside `vote()`.
+- Store auditor-visible sealed ballots (D-2026-10-09-01). Keep tally logic separate from ballot submission; do not put complex tally logic inside `vote()`.
 - Do not loop over all voters.
 - Emit useful events.
 - Admins cannot manipulate ballots or tallies.
