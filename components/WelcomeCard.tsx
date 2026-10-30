@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAccount, useConnect, useSignMessage } from "wagmi"
-import { hasInAppAccount } from "@/lib/in-app-account"
+import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi"
+import { readAccountKey, saveAccountKey, setAccountKeyUnlocked } from "@/lib/in-app-account"
 import { emailLooksOk, profilePayload } from "@/lib/identity/profile-payload"
 import { writeLocalEmail } from "@/lib/identity/local-email"
 import { signOffchainAction } from "@/lib/sign-offchain-action"
@@ -47,9 +47,10 @@ async function saveProfile(
 export function WelcomeCard() {
   const router = useRouter()
   const { address } = useAccount()
-  const { connect, connectors, isPending } = useConnect()
+  const { connectAsync, connectors, isPending } = useConnect()
+  const { disconnectAsync } = useDisconnect()
   const { signMessageAsync } = useSignMessage()
-  const connector = connectors.find((c) => c.id === "superdemocracy") ?? connectors[0]
+  const connector = connectors.find((c) => c.id === "superdemocracy")
   const pending = useRef<Pending>(null)
   const [panel, setPanel] = useState<Panel>(null)
   const [name, setName] = useState("")
@@ -58,6 +59,15 @@ export function WelcomeCard() {
   const [confirm, setConfirm] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+
+  async function openThisAccount(walletKey: unknown): Promise<`0x${string}` | null> {
+    if (typeof walletKey !== "string") return null
+    try {
+      return await saveAccountKey(walletKey)
+    } catch {
+      return null
+    }
+  }
 
   useEffect(() => {
     if (!address) return
@@ -150,9 +160,16 @@ export function WelcomeCard() {
         setBusy(false)
         return
       }
+      const accountAddress = await openThisAccount(data.walletKey)
+      if (!accountAddress) {
+        pending.current = null
+        setError("The account was created, but this browser could not open it. Log in to try again.")
+        setBusy(false)
+        return
+      }
       setPassword("")
       setConfirm("")
-      if (address) {
+      if (address?.toLowerCase() === accountAddress.toLowerCase()) {
         const failed = await saveProfile(address, { displayName: trimmedName, email: trimmedEmail }, signMessageAsync)
         if (failed) {
           setError(failed)
@@ -164,8 +181,22 @@ export function WelcomeCard() {
         setBusy(false)
         return
       }
+      if (!connector || connector.id !== "superdemocracy") {
+        pending.current = null
+        setError("The account was created, but this browser could not open it. Log in to try again.")
+        setBusy(false)
+        return
+      }
       pending.current = { kind: "signup", name: trimmedName, email: trimmedEmail }
-      connect({ connector })
+      setAccountKeyUnlocked(true)
+      try {
+        if (address) await disconnectAsync()
+        await connectAsync({ connector })
+      } catch {
+        setPanel(null)
+        router.push("/orgs")
+        setBusy(false)
+      }
     } catch {
       pending.current = null
       setBusy(false)
@@ -190,7 +221,11 @@ export function WelcomeCard() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password }),
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password,
+          existingKey: await readAccountKey().catch(() => null),
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -198,27 +233,34 @@ export function WelcomeCard() {
         setBusy(false)
         return
       }
+      const accountAddress = await openThisAccount(data.walletKey)
+      if (!accountAddress) {
+        setError("Signed in, but this browser could not open your account.")
+        setBusy(false)
+        return
+      }
       setPassword("")
-      if (!connector) {
+      if (!connector || connector.id !== "superdemocracy") {
         setError("Signed in, but this browser could not finish opening your account.")
         setBusy(false)
         return
       }
-      if (address) {
-        setPanel(null)
-        router.push("/orgs")
-        setBusy(false)
-        return
-      }
-      const exists = await hasInAppAccount().catch(() => false)
-      if (!exists) {
+      if (address?.toLowerCase() === accountAddress.toLowerCase()) {
         setPanel(null)
         router.push("/orgs")
         setBusy(false)
         return
       }
       pending.current = { kind: "login", email: trimmedEmail }
-      connect({ connector })
+      setAccountKeyUnlocked(true)
+      try {
+        if (address) await disconnectAsync()
+        await connectAsync({ connector })
+      } catch {
+        setPanel(null)
+        router.push("/orgs")
+        setBusy(false)
+      }
     } catch {
       pending.current = null
       setBusy(false)
@@ -231,39 +273,30 @@ export function WelcomeCard() {
 
   return (
     <>
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setError("")
-              setPassword("")
-              setConfirm("")
-              setPanel("signup")
-            }}
-            className="rounded-full bg-[#1B4FE0] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1239B0]"
-          >
-            Signup
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setError("")
-              setPassword("")
-              setConfirm("")
-              setPanel("login")
-            }}
-            className="rounded-full border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
-          >
-            Login
-          </button>
-        </div>
+      <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={enterAsGuest}
-          className="text-sm font-semibold text-zinc-500 hover:text-[#0E1C36]"
+          onClick={() => {
+            setError("")
+            setPassword("")
+            setConfirm("")
+            setPanel("signup")
+          }}
+          className="rounded-full bg-[#1B4FE0] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1239B0]"
         >
-          Enter as guest
+          Signup
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setError("")
+            setPassword("")
+            setConfirm("")
+            setPanel("login")
+          }}
+          className="rounded-full border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+        >
+          Login
         </button>
       </div>
 
@@ -296,11 +329,11 @@ export function WelcomeCard() {
               <h2 className="text-2xl font-bold text-[#0E1C36]">
                 {panel === "signup" ? "Create your account" : "Welcome back"}
               </h2>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                {panel === "signup"
-                  ? "Choose a password. It is how you get back into this account."
-                  : "Use the email and password on your account."}
-              </p>
+              {panel === "login" && (
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  Use the email and password on your account.
+                </p>
+              )}
             </div>
             <form
               className="mt-5 space-y-4"
@@ -382,6 +415,16 @@ export function WelcomeCard() {
               >
                 {busy || isPending ? "Working…" : panel === "signup" ? "Create account" : "Log in"}
               </button>
+              {panel === "signup" && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={enterAsGuest}
+                  className="w-full text-center text-sm font-semibold text-zinc-500 hover:text-[#0E1C36] disabled:opacity-50"
+                >
+                  Enter as guest
+                </button>
+              )}
               <p className="text-center text-sm text-zinc-500">
                 {panel === "signup" ? (
                   <>

@@ -17,7 +17,13 @@ export async function POST(request: Request) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }
-  const res = NextResponse.json({ ok: true, email: result.account.email, name: result.account.name })
+  const res = NextResponse.json({
+    ok: true,
+    email: result.account.email,
+    name: result.account.name,
+    walletKey: result.walletKey,
+    walletAddress: result.walletAddress,
+  })
   res.headers.set("Set-Cookie", sessionCookieHeader(result.token))
   return res
 }

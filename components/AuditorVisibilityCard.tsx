@@ -2,7 +2,9 @@
 
 import { useState } from "react"
 import { isAddress } from "viem"
-import { useReadContract, useWriteContract } from "wagmi"
+import { useReadContract } from "wagmi"
+import { useGovernanceWallet } from "@/hooks/useGovernanceWallet"
+import { governanceWalletMessage } from "@/lib/governance-wallet"
 import { signOffchainAction } from "@/lib/sign-offchain-action"
 import type { CommunityOrg } from "@/lib/community-orgs/types"
 
@@ -72,7 +74,7 @@ export function AuditorVisibilityCard({
     functionName: "ballotAuditor",
     query: { enabled: Boolean(orgAddress) },
   })
-  const { writeContractAsync } = useWriteContract()
+  const governance = useGovernanceWallet()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [counterInput, setCounterInput] = useState("")
@@ -90,7 +92,7 @@ export function AuditorVisibilityCard({
     setBusy(true)
     try {
       if (isChain && orgAddress) {
-        await writeContractAsync({
+        await governance.writeAndConfirm({
           address: orgAddress,
           abi: ballotPolicyAbi,
           functionName: "setAuditorVisibleBallots",
@@ -128,8 +130,8 @@ export function AuditorVisibilityCard({
         return
       }
       if (data.org) onCommunityOrg(data.org as CommunityOrg)
-    } catch {
-      setError("Could not save this setting.")
+    } catch (err) {
+      setError(isChain ? governanceWalletMessage(err) : "Could not save this setting.")
     } finally {
       setBusy(false)
     }
@@ -144,7 +146,7 @@ export function AuditorVisibilityCard({
     }
     setBusy(true)
     try {
-      await writeContractAsync({
+      await governance.writeAndConfirm({
         address: orgAddress,
         abi: ballotPolicyAbi,
         functionName: "setBallotAuditor",
@@ -152,8 +154,8 @@ export function AuditorVisibilityCard({
       })
       setCounterInput("")
       await refetchCounter()
-    } catch {
-      setError("Could not appoint the counter.")
+    } catch (err) {
+      setError(governanceWalletMessage(err))
     } finally {
       setBusy(false)
     }

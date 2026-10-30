@@ -6,14 +6,13 @@ import { useParams } from "next/navigation"
 import {
   useReadContracts,
   useReadContract,
-  useAccount,
-  useConnect,
   usePublicClient,
-  useSignMessage,
-  useWriteContract,
   useBlockNumber,
 } from "wagmi"
 import { signOffchainAction } from "@/lib/sign-offchain-action"
+import { GovernanceWalletControl } from "@/components/GovernanceWalletControl"
+import { useGovernanceWallet } from "@/hooks/useGovernanceWallet"
+import { governanceWalletMessage } from "@/lib/governance-wallet"
 import { abi as referendumAbi } from "@/abis/Referendum.json"
 import { safeAddress, shortAddress } from "@/lib/address"
 import { waitForTransactionReceipt } from "wagmi/actions"
@@ -28,7 +27,8 @@ export default function ReferendumPage() {
     ? params.address[0]
     : params.address
   const contractAddress = safeAddress(paramAddress)
-  const { address } = useAccount()
+  const governance = useGovernanceWallet()
+  const address = governance.address ?? undefined
   const { data: blockNumber } = useBlockNumber({ watch: true })
   const [mounted, setMounted] = React.useState(false)
   const [isVoting, setIsVoting] = React.useState(false)
@@ -154,9 +154,7 @@ export default function ReferendumPage() {
         ? "text-zinc-600"
         : "text-yellow-600"
 
-  const { connect, connectors } = useConnect()
-  const { writeContractAsync } = useWriteContract()
-  const { signMessageAsync } = useSignMessage()
+  const signMessageAsync = ({ message }: { message: string }) => governance.signMessage(message)
   const publicClient = usePublicClient()
 
   const detailTuple = details as readonly [string, string, string[]] | undefined
@@ -175,7 +173,7 @@ export default function ReferendumPage() {
     setAccepted(false)
     try {
       if (auditorVisible === false) {
-        const hash = await writeContractAsync({
+        const hash = await governance.writeContract({
           address: contractAddress,
           abi: referendumAbi,
           functionName: "vote",
@@ -222,7 +220,7 @@ export default function ReferendumPage() {
         setVoteError("Could not seal the ballot.")
         return
       }
-      const hash = await writeContractAsync({
+      const hash = await governance.writeContract({
         address: contractAddress,
         abi: referendumAbi,
         functionName: "vote",
@@ -230,8 +228,8 @@ export default function ReferendumPage() {
       })
       await waitForTransactionReceipt(config, { hash })
       setAccepted(true)
-    } catch {
-      setVoteError("Vote was not submitted.")
+    } catch (err) {
+      setVoteError(governanceWalletMessage(err))
     } finally {
       setIsVoting(false)
     }
@@ -240,14 +238,17 @@ export default function ReferendumPage() {
   const handleAcknowledge = async () => {
     if (!contractAddress) return
     setAckPending(true)
+    setVoteError("")
     try {
-      const hash = await writeContractAsync({
+      const hash = await governance.writeContract({
         address: contractAddress,
         abi: referendumAbi,
         functionName: "acknowledgeEducation",
       })
       await waitForTransactionReceipt(config, { hash })
       setPerspectivesOpen(false)
+    } catch (err) {
+      setVoteError(governanceWalletMessage(err))
     } finally {
       setAckPending(false)
     }
@@ -349,15 +350,15 @@ export default function ReferendumPage() {
         const choice = Number(data.choices[0])
         if (Number.isInteger(choice) && choice >= 0 && choice < counts.length) counts[choice] += 1
       }
-      const hash = await writeContractAsync({
+      const hash = await governance.writeContract({
         address: contractAddress,
         abi: referendumAbi,
         functionName: "publishTally",
         args: [counts],
       })
       await waitForTransactionReceipt(config, { hash })
-    } catch {
-      setPublishError("Could not publish the count.")
+    } catch (err) {
+      setPublishError(governanceWalletMessage(err))
     } finally {
       setPublishing(false)
     }
@@ -396,7 +397,7 @@ export default function ReferendumPage() {
             >
               <p>Status: {readableStatus}</p>
               <p>Id: {contractAddress ? shortAddress(contractAddress) : "—"}</p>
-              <p>You: {address ? shortAddress(address) : "Signing in…"}</p>
+              <p>You: {address ? shortAddress(address) : "Not signed in"}</p>
             </div>
           )}
         </div>
@@ -414,20 +415,6 @@ export default function ReferendumPage() {
             >
               {hasAcked ? "Perspectives" : "Read perspectives"}
             </button>
-            {!address && (
-              <button
-                type="button"
-                onClick={() =>
-                  connect({
-                    connector:
-                      connectors.find((c) => c.id === "superdemocracy") ?? connectors[0],
-                  })
-                }
-                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-              >
-                Continue
-              </button>
-            )}
             {readableStatus === "Active" && address && (
               <button
                 type="button"
@@ -445,6 +432,11 @@ export default function ReferendumPage() {
             )}
           </div>
         </div>
+        {!address && (
+          <div className="mt-3">
+            <GovernanceWalletControl wallet={governance} />
+          </div>
+        )}
 
         <div className="mt-4 flex items-start gap-16">
           <div>

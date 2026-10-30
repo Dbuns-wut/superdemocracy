@@ -5,7 +5,8 @@ import { usePetition, useReferendumAddress } from "@/hooks/usePetitions"
 import { generateMerkleRoot } from "@/lib/petition-signatures/merkle"
 import type { PetitionSignature } from "@/lib/petition-signatures/types"
 import { useEffect, useMemo, useState } from "react"
-import { useAccount, useWriteContract } from "wagmi"
+import { useGovernanceWallet } from "@/hooks/useGovernanceWallet"
+import { governanceWalletMessage } from "@/lib/governance-wallet"
 import { getAddress } from "viem"
 import { abi as organizationAbi } from "@/abis/Organization.json"
 import { useOptionalOrganizationAddress } from "@/contexts/OrganizationAddressContext"
@@ -42,8 +43,8 @@ export function PetitionCard({
   const { isMember, isAdmin } = useRoles(org)
   const { data, refetch } = usePetition(id, org)
   const { data: referendumAddress } = useReferendumAddress(id, org)
-  const { address: walletAddress } = useAccount()
-  const { writeContractAsync } = useWriteContract()
+  const governance = useGovernanceWallet()
+  const walletAddress = governance.address
 
   const [offchainSignatures, setOffchainSignatures] = useState<PetitionSignature[]>([])
   const [offchainCount, setOffchainCount] = useState(0)
@@ -147,55 +148,63 @@ export function PetitionCard({
 
   async function handleApprove() {
     if (!org) return
+    setSignError(null)
     setAnchorStatus("Approving petition…")
-    const signatures = await loadSignatures()
-    const merkleRoot = generateMerkleRoot(signatures)
-    const claimedCount = BigInt(signatures.length)
-
-    await writeContractAsync({
-      address: org,
-      abi: organizationAbi,
-      functionName: "anchorPetition",
-      args: [id, merkleRoot, claimedCount],
-    })
-    await writeContractAsync({
-      address: org,
-      abi: organizationAbi,
-      functionName: "approvePetition",
-      args: [id],
-    })
-    await refetch()
-    setAnchorStatus("Petition approved.")
+    try {
+      const signatures = await loadSignatures()
+      const merkleRoot = generateMerkleRoot(signatures)
+      const claimedCount = BigInt(signatures.length)
+      await governance.writeAndConfirm({
+        address: org,
+        abi: organizationAbi,
+        functionName: "anchorPetition",
+        args: [id, merkleRoot, claimedCount],
+      })
+      await governance.writeAndConfirm({
+        address: org,
+        abi: organizationAbi,
+        functionName: "approvePetition",
+        args: [id],
+      })
+      await refetch()
+      setAnchorStatus("Petition approved.")
+    } catch (err) {
+      setAnchorStatus(null)
+      setSignError(governanceWalletMessage(err))
+    }
   }
 
   async function handleReject() {
     if (!org) return
-    await writeContractAsync({
-      address: org,
-      abi: organizationAbi,
-      functionName: "rejectPetition",
-      args: [id],
-    })
-    await refetch()
+    setSignError(null)
+    try {
+      await governance.writeAndConfirm({
+        address: org,
+        abi: organizationAbi,
+        functionName: "rejectPetition",
+        args: [id],
+      })
+      await refetch()
+    } catch (err) {
+      setSignError(governanceWalletMessage(err))
+    }
   }
 
   async function handleLaunch() {
     if (!org) return
+    setSignError(null)
     const now = Math.floor(Date.now() / 1000)
-
-    await writeContractAsync({
-      address: org,
-      abi: organizationAbi,
-      functionName: "launchReferendum",
-      args: [
-        id,
-        ["Yes", "No"],
-        BigInt(now),
-        BigInt(now + 86400),
-      ],
-    })
-
-    await refetch()
+    try {
+      await governance.writeAndConfirm({
+        address: org,
+        abi: organizationAbi,
+        functionName: "launchReferendum",
+        args: [id, ["Yes", "No"], BigInt(now), BigInt(now + 86400)],
+      })
+      await refetch()
+    } catch (err) {
+      setSignError(governanceWalletMessage(err))
+    }
   }
 
   const thresholdMet = BigInt(offchainCount) >= threshold

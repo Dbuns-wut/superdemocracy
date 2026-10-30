@@ -9,6 +9,8 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { abi as registryAbi } from "@/abis/GroupRegistry.json"
 import { safeAddress } from "@/lib/address";
 import type { CommunityOrg } from "@/lib/community-orgs/types"
+import { useGovernanceWallet } from "@/hooks/useGovernanceWallet"
+import { governanceWalletMessage } from "@/lib/governance-wallet"
 
 const registryAddress = process.env.NEXT_PUBLIC_GROUP_REGISTRY as `0x${string}`
 
@@ -30,12 +32,9 @@ export default function Home() {
   const { isSuccess } = useWaitForTransactionReceipt({ hash })
 
   // Join contract hook
-  const { writeContract: writeJoin, data: joinHash } = useWriteContract()
-  const { isSuccess: joinSuccess } = useWaitForTransactionReceipt({ 
-    hash: joinHash 
-  })
-
   const { address } = useAccount()
+  const governance = useGovernanceWallet()
+  const chainAddress = governance.address ?? undefined
   const publicClient = usePublicClient()
   const [search, setSearch] = useState("")
   const [chainOrgs, setChainOrgs] = useState<any[]>([])
@@ -136,7 +135,32 @@ export default function Home() {
     }
 
     try {
-      await writeJoin({
+      const account = governance.address ?? (await governance.connect());
+      if (!account) {
+        alert("Sign in first.");
+        return;
+      }
+      if (publicClient) {
+        const alreadyMember = await publicClient.readContract({
+          address: orgAddress,
+          abi: [
+            {
+              name: "isMember",
+              type: "function",
+              inputs: [{ name: "user", type: "address" }],
+              outputs: [{ type: "bool" }],
+              stateMutability: "view",
+            },
+          ],
+          functionName: "isMember",
+          args: [account],
+        });
+        if (alreadyMember) {
+          window.location.href = `/orgs/${orgAddress}`;
+          return;
+        }
+      }
+      const hash = await governance.writeContract({
         address: orgAddress,
         abi: [
           {
@@ -149,9 +173,21 @@ export default function Home() {
         ],
         functionName: "join",
       });
-    } catch (error: any) {
+      if (!publicClient) {
+        alert("Join was sent, but this page could not confirm it.");
+        return;
+      }
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status !== "success") {
+        alert("Join failed.");
+        return;
+      }
+      void refetchIsMember();
+      void refetchTotalMembers();
+      void refetchPendingRequests();
+    } catch (error: unknown) {
       console.error("Join failed:", error);
-      alert("Join failed: " + (error?.message || "Unknown error"));
+      alert(governanceWalletMessage(error));
     }
   };
 
@@ -318,7 +354,7 @@ export default function Home() {
     contracts: chainOrgsInFilter
       .map((org) => {
         const safeOrgAddr = safeAddress(org.address)
-        const user = safeAddress(address)
+        const user = safeAddress(chainAddress)
         if (!safeOrgAddr || !user) return null
         return {
           address: safeOrgAddr,
@@ -367,7 +403,7 @@ export default function Home() {
     contracts: chainOrgsInFilter
       .map((org) => {
         const safeOrgAddr = safeAddress(org.address)
-        const user = safeAddress(address)
+        const user = safeAddress(chainAddress)
         if (!safeOrgAddr || !user) return null
         return {
           address: safeOrgAddr,
@@ -412,14 +448,6 @@ export default function Home() {
     allowFailure: false,
   })
   
-  useEffect(() => {
-    if (joinSuccess) {
-      refetchIsMember();
-      refetchTotalMembers();
-      refetchPendingRequests();
-    }
-  }, [joinSuccess, refetchIsMember, refetchTotalMembers, refetchPendingRequests]);
-
   const isMemberMap = useMemo(() => {
     const modeMap: Record<string, number> = {};
     const memberMap: Record<string, boolean> = {};
@@ -584,8 +612,9 @@ export default function Home() {
           )}
 
           {orgTab === 'all' && filteredOrgs.map((org) => {
+            const actor = org.isCommunity ? address : chainAddress
             const isCreator =
-              Boolean(address && org.creator && String(org.creator).toLowerCase() === address.toLowerCase());
+              Boolean(actor && org.creator && String(org.creator).toLowerCase() === actor.toLowerCase());
             const safeOrgAddr = org.isCommunity ? undefined : safeAddress(org.address);
             const orgCardId = `${org.isCommunity ? "c" : "x"}-${org.address}`;
             const membershipMode = org.isCommunity
@@ -716,15 +745,16 @@ export default function Home() {
                 const safeOrgAddr = safeAddress(org.address);
                 if (!safeOrgAddr) return false;
                 const isCreator =
-                  Boolean(address && org.creator) &&
-                  String(org.creator).toLowerCase() === address!.toLowerCase()
+                  Boolean(chainAddress && org.creator) &&
+                  String(org.creator).toLowerCase() === chainAddress!.toLowerCase()
                 const isMember = Boolean(isMemberMap.memberMap[safeOrgAddr] ?? false)
                 return isCreator || isMember
               })
               .map((org) => {
+                const actor = org.isCommunity ? address : chainAddress
                 const isCreator =
-                  Boolean(address && org.creator) &&
-                  String(org.creator).toLowerCase() === address!.toLowerCase()
+                  Boolean(actor && org.creator) &&
+                  String(org.creator).toLowerCase() === String(actor).toLowerCase()
                 const safeOrgAddr = org.isCommunity ? undefined : safeAddress(org.address)
                 const orgCardId = `${org.isCommunity ? "c" : "x"}-${org.address}`;
                 const isMemberFromContract = safeOrgAddr

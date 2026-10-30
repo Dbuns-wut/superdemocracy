@@ -2,19 +2,21 @@
 export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 
-import { useEffect, useState } from "react"
-import {
-  useWriteContract,
-  useWaitForTransactionReceipt,
-  useAccount,
-  useSignMessage,
-} from "wagmi"
+import { useState } from "react"
+import { useAccount, useSignMessage } from "wagmi"
 import { usePublicClient } from "wagmi"
 import { abi as registryAbi } from "@/abis/GroupRegistry.json"
 import { useRouter } from "next/navigation"
 import { decodeEventLog } from "viem"
 import { safeAddress } from "@/lib/address"
 import { signOffchainAction } from "@/lib/sign-offchain-action"
+import { GovernanceWalletControl } from "@/components/GovernanceWalletControl"
+import { useGovernanceWallet } from "@/hooks/useGovernanceWallet"
+import {
+  governanceSnapshot,
+  governanceWalletMessage,
+  signGovernanceMessage,
+} from "@/lib/governance-wallet"
 
 const registryAddress = process.env.NEXT_PUBLIC_GROUP_REGISTRY as `0x${string}`
 
@@ -22,27 +24,106 @@ export default function CreateOrganization() {
   const router = useRouter()
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
-  const { writeContract, data: hash, isPending } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+  const governance = useGovernanceWallet()
   const publicClient = usePublicClient()
 
   const [orgTitle, setOrgTitle] = useState("")
   const [orgDescription, setOrgDescription] = useState("")
   const [orgMode, setOrgMode] = useState<"Open" | "Manual" | "Automatic">("Open")
   const [orgType, setOrgType] = useState<"ON_CHAIN" | "OFF_CHAIN">("OFF_CHAIN")
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState("")
 
   const handleCreate = async () => {
     if (!orgTitle.trim() || !orgDescription.trim()) {
       alert("Title and description are required")
       return
     }
-    if (!address) {
-      alert("Sign in before creating an organization.")
+
+    if (orgType === "ON_CHAIN") {
+      setCreateError("")
+      if (!registryAddress) {
+        setCreateError("Governance setup is missing from this environment.")
+        return
+      }
+      const identity = process.env.NEXT_PUBLIC_IDENTITY_ADDRESS
+      if (!identity) {
+        setCreateError("Governance setup is missing from this environment.")
+        return
+      }
+      if (!publicClient) {
+        setCreateError("The organization was not created.")
+        return
+      }
+      setCreating(true)
+      try {
+        const modeValue = orgMode === "Manual" ? 1 : 0
+        const hash = await governance.writeContract({
+          address: registryAddress,
+          abi: registryAbi,
+          functionName: "createGroup",
+          args: [identity as `0x${string}`, orgTitle.trim(), orgDescription.trim(), modeValue],
+        })
+        const receipt = await publicClient.waitForTransactionReceipt({ hash })
+        if (receipt.status !== "success") {
+          setCreateError("The organization was not created.")
+          return
+        }
+        let group: `0x${string}` | undefined
+        for (const log of receipt.logs) {
+          try {
+            const decoded = decodeEventLog({
+              abi: registryAbi,
+              data: log.data,
+              topics: log.topics,
+            })
+            if (decoded.eventName !== "GroupCreated" || !decoded.args) continue
+            group = safeAddress((decoded.args as unknown as { group?: string }).group)
+            if (group) break
+          } catch {
+            // ignore unrelated logs
+          }
+        }
+        const walletAddress = governanceSnapshot().address
+        if (group && walletAddress) {
+          try {
+            const signed = await signOffchainAction({
+              action: "org-types.set",
+              resourceId: group,
+              voterId: walletAddress,
+              payload: { type: "ON_CHAIN" },
+              signMessageAsync: ({ message }) => signGovernanceMessage(message),
+            })
+            await fetch("/api/org-types/set", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orgId: group,
+                type: "ON_CHAIN",
+                voterId: walletAddress,
+                ...signed,
+              }),
+            })
+          } catch {
+            // The registry already created the organization. Unknown orgs are treated as governance.
+          }
+        }
+        if (group) {
+          router.push(`/orgs/${group}`)
+          return
+        }
+        setCreateError("The organization was created, but this page could not open it.")
+      } catch (error: unknown) {
+        console.error("Create governance org failed:", error)
+        setCreateError(governanceWalletMessage(error))
+      } finally {
+        setCreating(false)
+      }
       return
     }
 
-    if (orgType === "ON_CHAIN") {
-      alert("Governance organizations are not available with this account yet. Choose Community to vote now.")
+    if (!address) {
+      alert("Sign in before creating an organization.")
       return
     }
 
@@ -87,77 +168,7 @@ export default function CreateOrganization() {
       }
       return
     }
-
-    if (!registryAddress) {
-      alert("Registry address not found in .env")
-      return
-    }
-
-    const modeValue = orgMode === "Manual" ? 1 : 0
-
-    try {
-      await writeContract({
-        address: registryAddress,
-        abi: registryAbi,
-        functionName: "createGroup",
-        args: [
-          process.env.NEXT_PUBLIC_IDENTITY_ADDRESS as `0x${string}`,
-          orgTitle.trim(),
-          orgDescription.trim(),
-          modeValue,
-        ],
-      })
-    } catch (error: unknown) {
-      const err = error as { message?: string }
-      console.error("Create failed:", error)
-      alert("Create failed: " + (err?.message || "Unknown error"))
-    }
   }
-
-  if (isSuccess) {
-    setTimeout(() => router.push("/"), 1800)
-  }
-  const isSubmittingOnChain = (isPending || isConfirming) && orgType === "ON_CHAIN"
-
-  useEffect(() => {
-    if (!hash || !publicClient || !address) return
-    ;(async () => {
-      try {
-        const receipt = await publicClient.waitForTransactionReceipt({ hash })
-        for (const log of receipt.logs) {
-          try {
-            const decoded = decodeEventLog({
-              abi: registryAbi,
-              data: log.data,
-              topics: log.topics,
-            })
-            if (decoded.eventName !== "GroupCreated" || !decoded.args) continue
-            const group = safeAddress(
-              (decoded.args as unknown as { group?: string }).group
-            )
-            if (!group) continue
-            const signed = await signOffchainAction({
-              action: "org-types.set",
-              resourceId: group,
-              voterId: address,
-              payload: { type: orgType },
-              signMessageAsync,
-            })
-            await fetch("/api/org-types/set", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ orgId: group, type: orgType, voterId: address, ...signed }),
-            })
-            break
-          } catch {
-            // ignore unrelated logs
-          }
-        }
-      } catch {
-        // ignore org type persistence failures; chain tx already succeeded
-      }
-    })()
-  }, [hash, publicClient, orgType, address, signMessageAsync])
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 p-8">
@@ -202,6 +213,11 @@ export default function CreateOrganization() {
                 <option value="OFF_CHAIN">Community</option>
                 <option value="ON_CHAIN">Governance</option>
               </select>
+              {orgType === "ON_CHAIN" && (
+                <div className="mt-3">
+                  <GovernanceWalletControl wallet={governance} />
+                </div>
+              )}
             </div>
 
             <div>
@@ -222,13 +238,17 @@ export default function CreateOrganization() {
               )}
             </div>
 
+            {createError && orgType === "ON_CHAIN" ? (
+              <p className="text-sm text-red-700">{createError}</p>
+            ) : null}
+
             <button
               type="button"
               onClick={() => void handleCreate()}
-              disabled={isSubmittingOnChain}
+              disabled={creating}
               className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {isSubmittingOnChain ? "Creating…" : "Create"}
+              {creating ? "Creating…" : "Create"}
             </button>
           </div>
         </div>

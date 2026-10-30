@@ -121,6 +121,9 @@ export async function migrate(): Promise<void> {
         created_at BIGINT NOT NULL
       );
 
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS wallet_cipher TEXT;
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS wallet_address TEXT;
+
       CREATE TABLE IF NOT EXISTS auth_sessions (
         token_hash TEXT PRIMARY KEY,
         account_id TEXT NOT NULL,
