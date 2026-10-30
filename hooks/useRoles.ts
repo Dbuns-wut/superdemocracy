@@ -1,4 +1,5 @@
-import { useReadContract, useAccount } from "wagmi"
+import { useReadContract } from "wagmi"
+import { useGovernanceWallet } from "@/hooks/useGovernanceWallet"
 import { getAddress } from "viem"
 import { abi as organizationAbi } from "@/abis/Organization.json"
 import { useOptionalOrganizationAddress } from "@/contexts/OrganizationAddressContext"
@@ -13,7 +14,7 @@ function normalizeOrg(addr: string | undefined): `0x${string}` | undefined {
 }
 
 export function useRoles(organizationAddress?: string | undefined) {
-  const { address } = useAccount()
+  const { address } = useGovernanceWallet()
   const fromContext = useOptionalOrganizationAddress()
   const org = normalizeOrg(organizationAddress ?? fromContext)
 

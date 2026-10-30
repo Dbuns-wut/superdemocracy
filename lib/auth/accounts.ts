@@ -3,6 +3,8 @@ import { promises as fs } from "fs"
 import path from "path"
 import { ensureMigrated, hasDatabase, withDbClient } from "@/lib/db"
 import { hashPassword, verifyPassword } from "./password"
+import { privateKeyToAccount } from "viem/accounts"
+import { decryptPrivateKey, encryptPrivateKey, newAccountWallet } from "./wallet-vault"
 
 const DATA_DIR = path.join(process.cwd(), "data")
 const ACCOUNTS_FILE = path.join(DATA_DIR, "accounts.json")
@@ -15,6 +17,10 @@ export type Account = {
   name: string
   passwordHash: string
   createdAt: number
+  /** Password-encrypted private key. Never the raw key. */
+  walletCipher?: string
+  /** Public address for this account. The only address it can use. */
+  walletAddress?: string
 }
 
 type AccountBook = { byEmail: Record<string, Account> }
@@ -120,13 +126,29 @@ export function newSessionToken(): string {
   return randomBytes(32).toString("base64url")
 }
 
-function publicAccount(row: { id: string; email: string; name: string; password_hash?: string; passwordHash?: string; created_at?: number; createdAt?: number }): Account {
+function publicAccount(row: {
+  id: string
+  email: string
+  name: string
+  password_hash?: string
+  passwordHash?: string
+  created_at?: number
+  createdAt?: number
+  wallet_cipher?: string | null
+  walletCipher?: string | null
+  wallet_address?: string | null
+  walletAddress?: string | null
+}): Account {
+  const walletCipher = row.walletCipher ?? row.wallet_cipher ?? ""
+  const walletAddress = row.walletAddress ?? row.wallet_address ?? ""
   return {
     id: row.id,
     email: row.email,
     name: row.name,
     passwordHash: row.passwordHash ?? row.password_hash ?? "",
     createdAt: row.createdAt ?? Number(row.created_at),
+    ...(walletCipher ? { walletCipher } : {}),
+    ...(walletAddress ? { walletAddress } : {}),
   }
 }
 
@@ -155,11 +177,68 @@ async function insertSession(account: Account): Promise<string> {
   return token
 }
 
+type OpenedWallet = { walletKey: `0x${string}`; walletAddress: `0x${string}` }
+
+function adoptExistingKey(existingKey: string | undefined): { privateKey: `0x${string}`; address: `0x${string}` } | null {
+  if (!existingKey || !existingKey.startsWith("0x")) return null
+  try {
+    const address = privateKeyToAccount(existingKey as `0x${string}`).address
+    return { privateKey: existingKey as `0x${string}`, address }
+  } catch {
+    return null
+  }
+}
+
+async function openStoredWallet(cipher: string, password: string): Promise<OpenedWallet> {
+  const walletKey = await decryptPrivateKey(cipher, password)
+  return { walletKey, walletAddress: privateKeyToAccount(walletKey).address }
+}
+
+async function ensureAccountWallet(email: string, password: string, existingKey?: string): Promise<OpenedWallet> {
+  const existing = await accountByEmail(email)
+  if (!existing) throw new Error("Sign in again.")
+  if (existing.walletCipher) return openStoredWallet(existing.walletCipher, password)
+
+  const created = adoptExistingKey(existingKey) ?? newAccountWallet()
+  const cipher = await encryptPrivateKey(created.privateKey, password)
+
+  if (hasDatabase()) {
+    await ensureMigrated()
+    const stored = await withDbClient(async (client) => {
+      const updated = await client.query(
+        `UPDATE accounts SET wallet_cipher = $1, wallet_address = $2 WHERE email = $3 AND (wallet_cipher IS NULL OR wallet_cipher = '') RETURNING wallet_cipher`,
+        [cipher, created.address, email]
+      )
+      if (updated.rowCount) return cipher
+      const again = await client.query(`SELECT wallet_cipher FROM accounts WHERE email = $1`, [email])
+      return String(again.rows[0]?.wallet_cipher ?? "")
+    })
+    if (!stored) throw new Error("Could not open this account.")
+    if (stored === cipher) return { walletKey: created.privateKey, walletAddress: created.address }
+    return openStoredWallet(stored, password)
+  }
+
+  return queue(() =>
+    withLock(async () => {
+      const book = accountBook(await readJson(ACCOUNTS_FILE))
+      const current = book.byEmail[email]
+      if (!current) throw new Error("Sign in again.")
+      if (current.walletCipher) return openStoredWallet(current.walletCipher, password)
+      book.byEmail[email] = { ...current, walletCipher: cipher, walletAddress: created.address }
+      await writeJson(ACCOUNTS_FILE, book)
+      return { walletKey: created.privateKey, walletAddress: created.address }
+    })
+  )
+}
+
 export async function createAccount(input: {
   name: string
   email: string
   password: string
-}): Promise<{ ok: true; account: Account; token: string } | { ok: false; error: string; status: number }> {
+}): Promise<
+  | { ok: true; account: Account; token: string; walletKey: `0x${string}`; walletAddress: `0x${string}` }
+  | { ok: false; error: string; status: number }
+> {
   const email = input.email.trim().toLowerCase()
   const name = input.name.trim()
   if (!name) return { ok: false, error: "Enter your name.", status: 400 }
@@ -175,12 +254,16 @@ export async function createAccount(input: {
   }
 
   const passwordHash = await hashPassword(input.password)
+  const wallet = newAccountWallet()
+  const walletCipher = await encryptPrivateKey(wallet.privateKey, input.password)
   const account: Account = {
     id: randomUUID(),
     email,
     name,
     passwordHash,
     createdAt: Date.now(),
+    walletCipher,
+    walletAddress: wallet.address,
   }
 
   if (hasDatabase()) {
@@ -188,8 +271,16 @@ export async function createAccount(input: {
     try {
       await withDbClient(async (client) => {
         await client.query(
-          `INSERT INTO accounts (id, email, name, password_hash, created_at) VALUES ($1,$2,$3,$4,$5)`,
-          [account.id, account.email, account.name, account.passwordHash, account.createdAt]
+          `INSERT INTO accounts (id, email, name, password_hash, created_at, wallet_cipher, wallet_address) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [
+            account.id,
+            account.email,
+            account.name,
+            account.passwordHash,
+            account.createdAt,
+            account.walletCipher,
+            account.walletAddress,
+          ]
         )
       })
     } catch (e: unknown) {
@@ -198,7 +289,7 @@ export async function createAccount(input: {
       throw e
     }
     const token = await insertSession(account)
-    return { ok: true, account, token }
+    return { ok: true, account, token, walletKey: wallet.privateKey, walletAddress: wallet.address }
   }
 
   return queue(() =>
@@ -208,7 +299,7 @@ export async function createAccount(input: {
       book.byEmail[email] = account
       await writeJson(ACCOUNTS_FILE, book)
       const token = await insertSession(account)
-      return { ok: true, account, token }
+      return { ok: true, account, token, walletKey: wallet.privateKey, walletAddress: wallet.address }
     })
   )
 }
@@ -217,9 +308,10 @@ async function accountByEmail(email: string): Promise<Account | null> {
   if (hasDatabase()) {
     await ensureMigrated()
     return withDbClient(async (client) => {
-      const res = await client.query(`SELECT id, email, name, password_hash, created_at FROM accounts WHERE email = $1`, [
-        email,
-      ])
+      const res = await client.query(
+        `SELECT id, email, name, password_hash, created_at, wallet_cipher, wallet_address FROM accounts WHERE email = $1`,
+        [email]
+      )
       const row = res.rows[0]
       return row ? publicAccount(row) : null
     })
@@ -230,8 +322,12 @@ async function accountByEmail(email: string): Promise<Account | null> {
 
 export async function loginAccount(
   emailInput: string,
-  password: string
-): Promise<{ ok: true; account: Account; token: string } | { ok: false; error: string; status: number }> {
+  password: string,
+  existingKey?: string
+): Promise<
+  | { ok: true; account: Account; token: string; walletKey: `0x${string}`; walletAddress: `0x${string}` }
+  | { ok: false; error: string; status: number }
+> {
   const email = emailInput.trim().toLowerCase()
   const account = await accountByEmail(email)
   if (!account) {
@@ -240,8 +336,15 @@ export async function loginAccount(
   }
   const match = await verifyPassword(password, account.passwordHash)
   if (!match) return { ok: false, error: "Email or password is wrong.", status: 401 }
+  let wallet: OpenedWallet
+  try {
+    wallet = await ensureAccountWallet(email, password, existingKey)
+  } catch {
+    return { ok: false, error: "Could not open this account.", status: 500 }
+  }
   const token = await insertSession(account)
-  return { ok: true, account, token }
+  await rememberWalletAddress(email, wallet.walletAddress)
+  return { ok: true, account, token, walletKey: wallet.walletKey, walletAddress: wallet.walletAddress }
 }
 
 export async function accountFromToken(token: string | undefined): Promise<Account | null> {
@@ -251,7 +354,7 @@ export async function accountFromToken(token: string | undefined): Promise<Accou
     await ensureMigrated()
     return withDbClient(async (client) => {
       const res = await client.query(
-        `SELECT a.id, a.email, a.name, a.password_hash, a.created_at
+        `SELECT a.id, a.email, a.name, a.password_hash, a.created_at, a.wallet_cipher, a.wallet_address
          FROM auth_sessions s
          JOIN accounts a ON a.email = s.email
          WHERE s.token_hash = $1 AND s.expires_at > $2`,
@@ -303,12 +406,33 @@ export async function changePassword(input: {
   if (!account) return { ok: false, error: "Sign in again.", status: 401 }
   const currentOk = await verifyPassword(input.currentPassword, account.passwordHash)
   if (!currentOk) return { ok: false, error: "Current password is wrong.", status: 401 }
+
+  const stored = await accountByEmail(account.email)
+  if (!stored) return { ok: false, error: "Sign in again.", status: 401 }
+  let walletCipher: string
+  let walletAddress = ""
+  try {
+    if (stored.walletCipher) {
+      const key = await decryptPrivateKey(stored.walletCipher, input.currentPassword)
+      walletCipher = await encryptPrivateKey(key, input.newPassword)
+      walletAddress = privateKeyToAccount(key).address
+    } else {
+      const created = newAccountWallet()
+      walletCipher = await encryptPrivateKey(created.privateKey, input.newPassword)
+      walletAddress = created.address
+    }
+  } catch {
+    return { ok: false, error: "Could not update the password.", status: 500 }
+  }
   const passwordHash = await hashPassword(input.newPassword)
 
   if (hasDatabase()) {
     await ensureMigrated()
     await withDbClient(async (client) => {
-      await client.query(`UPDATE accounts SET password_hash = $1 WHERE email = $2`, [passwordHash, account.email])
+      await client.query(
+        `UPDATE accounts SET password_hash = $1, wallet_cipher = $2, wallet_address = $3 WHERE email = $4`,
+        [passwordHash, walletCipher, walletAddress, account.email]
+      )
     })
     return { ok: true }
   }
@@ -318,9 +442,29 @@ export async function changePassword(input: {
       const book = accountBook(await readJson(ACCOUNTS_FILE))
       const current = book.byEmail[account.email]
       if (!current) return { ok: false, error: "Sign in again.", status: 401 }
-      book.byEmail[account.email] = { ...current, passwordHash }
+      book.byEmail[account.email] = { ...current, passwordHash, walletCipher, walletAddress }
       await writeJson(ACCOUNTS_FILE, book)
       return { ok: true }
+    })
+  )
+}
+
+async function rememberWalletAddress(email: string, walletAddress: string): Promise<void> {
+  if (!walletAddress) return
+  if (hasDatabase()) {
+    await ensureMigrated()
+    await withDbClient(async (client) => {
+      await client.query(`UPDATE accounts SET wallet_address = $1 WHERE email = $2`, [walletAddress, email])
+    })
+    return
+  }
+  await queue(() =>
+    withLock(async () => {
+      const book = accountBook(await readJson(ACCOUNTS_FILE))
+      const current = book.byEmail[email]
+      if (!current || current.walletAddress === walletAddress) return
+      book.byEmail[email] = { ...current, walletAddress }
+      await writeJson(ACCOUNTS_FILE, book)
     })
   )
 }

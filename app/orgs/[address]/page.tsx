@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
-import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { useSignMessage } from "wagmi";
 import { usePublicClient } from "wagmi";
 import { decodeEventLog } from "viem";
@@ -18,6 +18,9 @@ import { OrgSettingsPanel } from "@/components/OrgSettingsPanel";
 import { PerspectivesPanel } from "@/components/PerspectivesPanel";
 import { OrganizationAddressProvider } from "@/contexts/OrganizationAddressContext";
 import { AuditorVisibilityCard } from "@/components/AuditorVisibilityCard";
+import { GovernanceWalletControl } from "@/components/GovernanceWalletControl";
+import { useGovernanceWallet } from "@/hooks/useGovernanceWallet";
+import { governanceWalletMessage } from "@/lib/governance-wallet";
 import { useOrgShortcutIcons } from "@/hooks/useOrgShortcutIcons";
 import type { OrgSettings } from "@/lib/org-settings/types";
 import type { ReferendumEducation } from "@/lib/education/types";
@@ -90,12 +93,8 @@ const orgAbi = [
 export default function OrgPage() {
   const params = useParams();
   const { address: userAddress } = useAccount();
-  const { writeContractAsync } = useWriteContract();
-  const { writeContract: writePetition, data: createPetitionHash } = useWriteContract();
+  const governance = useGovernanceWallet();
   const { signMessageAsync } = useSignMessage();
-  const { isSuccess: createPetitionSuccess } = useWaitForTransactionReceipt({
-    hash: createPetitionHash,
-  });
   const publicClient = usePublicClient();
 
   const [mounted, setMounted] = useState(false);
@@ -264,6 +263,7 @@ export default function OrgPage() {
   const orgAddress = params?.address as string;
 
   const userAddr = safeAddress(userAddress);
+  const chainAddr = safeAddress(governance.address ?? undefined);
   const orgAddr = safeAddress(orgAddress);
   const offchainId = !orgAddr ? normalizeOrgId(orgAddress) : null;
   const orgKey = orgAddr ?? offchainId ?? null;
@@ -293,8 +293,8 @@ export default function OrgPage() {
       },
     ],
     functionName: "isAdmin",
-    args: userAddr ? [userAddr as `0x${string}`] : undefined,
-    query: { enabled: !!mounted && !!orgAddr && !!userAddr },
+    args: chainAddr ? [chainAddr] : undefined,
+    query: { enabled: !!mounted && !!orgAddr && !!chainAddr },
   });
 
   const isAdmin = orgAddr
@@ -720,14 +720,6 @@ export default function OrgPage() {
   }, [publicClient, orgAddr, petitionRefresh]);
 
   useEffect(() => {
-    if (createPetitionSuccess) {
-      setPetitionTitle("");
-      setPetitionDescription("");
-      setPetitionRefresh((n) => n + 1);
-    }
-  }, [createPetitionSuccess]);
-
-  useEffect(() => {
     if (!mounted || !orgKey) return;
 
     const fetchPosts = async () => {
@@ -975,7 +967,7 @@ export default function OrgPage() {
     });
   }, [filteredVotes, socialInteractionRecency, socialSortOrder]);
 
-  const addressLower = userAddr?.toLowerCase();
+  const addressLower = chainAddr?.toLowerCase();
 
   const filteredOrgPetitions = useMemo(() => {
     return petitionFeed
@@ -1036,17 +1028,24 @@ export default function OrgPage() {
     (offchainOrg?.description && offchainOrg.description.trim()) ||
     "This organization has not added a description yet.";
 
-  const handleCreatePetition = () => {
+  const handleCreatePetition = async () => {
     if (!orgAddr || !petitionTitle.trim() || !petitionDescription.trim()) {
       alert("Title and description are required");
       return;
     }
-    writePetition({
-      address: orgAddr,
-      abi: organizationAbi,
-      functionName: "createPetition",
-      args: [petitionTitle.trim(), petitionDescription.trim(), BigInt(1)],
-    });
+    try {
+      await governance.writeAndConfirm({
+        address: orgAddr,
+        abi: organizationAbi,
+        functionName: "createPetition",
+        args: [petitionTitle.trim(), petitionDescription.trim(), BigInt(1)],
+      });
+      setPetitionTitle("");
+      setPetitionDescription("");
+      setPetitionRefresh((n) => n + 1);
+    } catch (err) {
+      alert(governanceWalletMessage(err));
+    }
   };
 
   const handleCreateEvent = () => {
@@ -2189,6 +2188,11 @@ export default function OrgPage() {
 
         {canShowMain && (
         <>
+        {orgAddr && orgType === "ON_CHAIN" && (
+          <div className="mb-6">
+            <GovernanceWalletControl wallet={governance} />
+          </div>
+        )}
         {view !== "home" && (
           <>
             <h1 className="text-2xl font-bold mb-2 text-center w-full">{orgDisplayName || fallbackOrgName}</h1>
@@ -3164,7 +3168,7 @@ export default function OrgPage() {
                           type="button"
                           onClick={async () => {
                             try {
-                              const hash = await writeContractAsync({
+                              const hash = await governance.writeContract({
                                 address: safeAddress(orgAddress) as `0x${string}`,
                                 abi: orgAbi,
                                 functionName: "approveMember",
@@ -3172,7 +3176,7 @@ export default function OrgPage() {
                               });
 
                               if (!publicClient) {
-                                console.error("NO PUBLIC CLIENT");
+                                alert("The action was sent, but this page could not confirm it.");
                                 return;
                               }
 
@@ -3237,7 +3241,7 @@ export default function OrgPage() {
                               }
                             } catch (err) {
                               console.error(err);
-                              alert("Approval failed");
+                              alert(governanceWalletMessage(err));
                             }
                           }}
                           className="px-4 py-1 rounded mr-2 bg-green-600 text-white hover:bg-green-500"

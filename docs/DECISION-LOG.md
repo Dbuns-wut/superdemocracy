@@ -37,6 +37,19 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 # DECISIONS
 
+## 42. One account, one address (D-2026-10-25-01)
+**Date:** 2026-10-25
+
+**Decision:** Each account has one address. That address is created with the account and comes back when the person signs in on any device. Votes and other account actions use that address only. A browser wallet cannot stand in as a second address while the person is in the account. The private key is stored as ciphertext encrypted with the password. The password itself stays a scrypt hash. Changing the password re-encrypts the same key. This is not a government ID check. Two different emails are still two accounts.
+
+**Why:** The Chief Architect said people must be able to vote from any device on their account, and the wallet must be tied to that account. Before accounts, changing a MetaMask address was how different voters were tried. That must not work inside an account: one account cannot act as a different address, and one account cannot hold more than one address.
+
+**Status:** Accepted. The key is encrypted at rest. Sign-in is what opens it on a device. The server sees the password during sign-in, the same as any password login, and does not store the raw key. A session by itself does not return the key.
+
+**Source:** Chief Architect, 2026-10-25.
+
+---
+
 ## 41. One Rulebook, and the Extra Plans Are Removed (D-2026-10-29-03)
 **Date:** 2026-10-29
 
@@ -109,26 +122,32 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 ---
 
 ## 36. The account follows the person (D-2026-10-16-01)
+
+> The address now follows the account. See 42. One account, one address (D-2026-10-25-01). A government ID check is still not built.
+
 **Date:** 2026-10-16
 
 **Decision:** A SuperDemocracy account belongs to the person, not to a device. The same account must work on different devices. What that person can do depends on the identification they have provided and had verified. No wallet install and no second signup (D-2026-09-25-01). This is not a claim that a government ID check exists yet.
 
 **Why:** The Chief Architect corrected the launch note. Saying the account is tied to one device described the current browser key, not the product. Capability is gated by verified identification, which can increase over time.
 
-**Status:** Accepted direction. Password sign-in is the account gate (D-2026-10-20-01). A government ID check is still not built. The vote key in the browser is still separate from that password.
+**Status:** Accepted direction. Password sign-in is the account gate (D-2026-10-20-01). The account's one address follows that sign-in (D-2026-10-25-01). A government ID check is still not built.
 
 **Source:** Chief Architect, 2026-10-16.
 
 ---
 
 ## 35. In-app account, no browser extension (D-2026-09-25-01)
+
+> The device-local key, and using a browser wallet as the account's address, are superseded by 42. One account, one address (D-2026-10-25-01).
+
 **Date:** 2026-09-25
 
 **Decision:** Members sign in inside SuperDemocracy. The default account is created and kept on the device. A browser extension such as MetaMask is not required. An injected browser wallet may remain available for people who already use one, especially for on-chain organizations. This is not government-ID verification and it does not replace vote secrecy.
 
 **Why:** The Chief Architect does not want members, especially older people, to install a wallet extension. Sign-in should feel like part of the product: do it once on this device, then it is already there.
 
-**Status:** Accepted for sign-in inside the product, with no wallet extension. The part that keeps the account on one device is superseded by D-2026-10-16-01. First slice is still a key stored in the browser, used for the existing signed requests. Not a MetaMask Embedded product integration.
+**Status:** Accepted for sign-in inside the product, with no wallet extension. The account has one address, and that address follows the sign-in (D-2026-10-25-01). A browser wallet is not a second address for the account.
 
 **Source:** Chief Architect decision, 2026-09-25.
 
