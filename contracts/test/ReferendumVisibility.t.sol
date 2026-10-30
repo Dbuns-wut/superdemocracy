@@ -118,12 +118,32 @@ contract ReferendumVisibilityTest is Test {
 
         vm.prank(stranger);
         vm.expectRevert(Referendum.NotBallotCounter.selector);
-        referendum.publishTally(counts);
+        referendum.publishTally(counts, 0);
 
         vm.prank(counter);
-        referendum.publishTally(counts);
+        referendum.publishTally(counts, 0);
         assertEq(referendum.optionVotes(0), 1);
         assertEq(referendum.optionVotes(1), 0);
+        assertEq(referendum.rejectedBallots(), 0);
+    }
+
+    function testUnopenableBallotIsRejectedInsteadOfBlockingTheCount() public {
+        _ackAndVote(voter, hex"01");
+        address second = address(0xF00D);
+        identity.setVerified(second, true);
+        _ackAndVote(second, hex"ff");
+
+        uint256[] memory counts = new uint256[](2);
+        counts[0] = 1;
+
+        vm.prank(counter);
+        vm.expectRevert("Tally does not match ballots cast");
+        referendum.publishTally(counts, 0);
+
+        vm.prank(counter);
+        referendum.publishTally(counts, 1);
+        assertEq(referendum.optionVotes(0), 1);
+        assertEq(referendum.rejectedBallots(), 1);
     }
 
     function testSecretModeStoresNoChoice() public {
