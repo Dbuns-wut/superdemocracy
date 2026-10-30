@@ -1,57 +1,17 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi"
-import { readAccountKey, saveAccountKey, setAccountKeyUnlocked } from "@/lib/in-app-account"
-import { emailLooksOk, profilePayload } from "@/lib/identity/profile-payload"
+import { useSession } from "@/lib/auth/use-session"
+import { emailLooksOk } from "@/lib/identity/profile-payload"
 import { writeLocalEmail } from "@/lib/identity/local-email"
-import { signOffchainAction } from "@/lib/sign-offchain-action"
 import { PasswordInput } from "@/components/PasswordInput"
 
 type Panel = "login" | "signup" | null
-type Pending =
-  | { kind: "signup"; name: string; email: string }
-  | { kind: "login"; email: string }
-  | null
-
-async function saveProfile(
-  address: string,
-  input: { displayName: string; email?: string },
-  signMessageAsync: (args: { message: string }) => Promise<`0x${string}`>
-): Promise<string | null> {
-  const payload = profilePayload({
-    displayName: input.displayName,
-    email: input.email,
-  })
-  const signed = await signOffchainAction({
-    action: "identity.profile.update",
-    resourceId: address,
-    voterId: address,
-    payload,
-    signMessageAsync,
-  })
-  const res = await fetch("/api/me", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...payload, voterId: address, ...signed }),
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    return typeof data?.error === "string" ? data.error : "Could not create the account."
-  }
-  if (payload.email) writeLocalEmail(payload.email)
-  return null
-}
 
 export function WelcomeCard() {
   const router = useRouter()
-  const { address } = useAccount()
-  const { connectAsync, connectors, isPending } = useConnect()
-  const { disconnectAsync } = useDisconnect()
-  const { signMessageAsync } = useSignMessage()
-  const connector = connectors.find((c) => c.id === "superdemocracy")
-  const pending = useRef<Pending>(null)
+  const { refresh } = useSession()
   const [panel, setPanel] = useState<Panel>(null)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -60,58 +20,6 @@ export function WelcomeCard() {
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
 
-  async function openThisAccount(walletKey: unknown): Promise<`0x${string}` | null> {
-    if (typeof walletKey !== "string") return null
-    try {
-      return await saveAccountKey(walletKey)
-    } catch {
-      return null
-    }
-  }
-
-  useEffect(() => {
-    if (!address) return
-    let cancelled = false
-    void fetch(`/api/me?address=${encodeURIComponent(address)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return
-        if (typeof data?.profile?.email === "string") writeLocalEmail(data.profile.email)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [address])
-
-  useEffect(() => {
-    if (!address || !pending.current) return
-    const job = pending.current
-    pending.current = null
-    void (async () => {
-      setBusy(true)
-      setError("")
-      try {
-        if (job.kind === "signup") {
-          const failed = await saveProfile(address, { displayName: job.name, email: job.email }, signMessageAsync)
-          if (failed) {
-            setError(failed)
-            return
-          }
-          setPanel(null)
-          router.push("/orgs")
-          return
-        }
-        setPanel(null)
-        router.push("/orgs")
-      } catch {
-        setError("Could not finish. Try again.")
-      } finally {
-        setBusy(false)
-      }
-    })()
-  }, [address, router, signMessageAsync])
-
   function enterAsGuest() {
     try {
       window.sessionStorage.setItem("sd-guest", "1")
@@ -119,6 +27,20 @@ export function WelcomeCard() {
       /* ignore */
     }
     router.push("/orgs")
+  }
+
+  async function finishSignIn(trimmedEmail: string) {
+    writeLocalEmail(trimmedEmail)
+    const account = await refresh()
+    if (!account) {
+      setError("Signed in, but this browser could not open your session. Try again.")
+      return false
+    }
+    setPassword("")
+    setConfirm("")
+    setPanel(null)
+    router.push("/orgs")
+    return true
   }
 
   async function submitSignup() {
@@ -141,10 +63,6 @@ export function WelcomeCard() {
       setError("Those passwords don't match.")
       return
     }
-    if (!connector) {
-      setError("Sign-up is not available in this browser.")
-      return
-    }
     setBusy(true)
     try {
       const res = await fetch("/api/auth/signup", {
@@ -155,52 +73,14 @@ export function WelcomeCard() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        pending.current = null
         setError(typeof data?.error === "string" ? data.error : "Could not create the account.")
-        setBusy(false)
         return
       }
-      const accountAddress = await openThisAccount(data.walletKey)
-      if (!accountAddress) {
-        pending.current = null
-        setError("The account was created, but this browser could not open it. Log in to try again.")
-        setBusy(false)
-        return
-      }
-      setPassword("")
-      setConfirm("")
-      if (address?.toLowerCase() === accountAddress.toLowerCase()) {
-        const failed = await saveProfile(address, { displayName: trimmedName, email: trimmedEmail }, signMessageAsync)
-        if (failed) {
-          setError(failed)
-          setBusy(false)
-          return
-        }
-        setPanel(null)
-        router.push("/orgs")
-        setBusy(false)
-        return
-      }
-      if (!connector || connector.id !== "superdemocracy") {
-        pending.current = null
-        setError("The account was created, but this browser could not open it. Log in to try again.")
-        setBusy(false)
-        return
-      }
-      pending.current = { kind: "signup", name: trimmedName, email: trimmedEmail }
-      setAccountKeyUnlocked(true)
-      try {
-        if (address) await disconnectAsync()
-        await connectAsync({ connector })
-      } catch {
-        setPanel(null)
-        router.push("/orgs")
-        setBusy(false)
-      }
+      await finishSignIn(trimmedEmail)
     } catch {
-      pending.current = null
-      setBusy(false)
       setError("Could not create the account.")
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -221,50 +101,18 @@ export function WelcomeCard() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: trimmedEmail,
-          password,
-          existingKey: await readAccountKey().catch(() => null),
-        }),
+        body: JSON.stringify({ email: trimmedEmail, password }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         setError(typeof data?.error === "string" ? data.error : "Could not sign in.")
-        setBusy(false)
         return
       }
-      const accountAddress = await openThisAccount(data.walletKey)
-      if (!accountAddress) {
-        setError("Signed in, but this browser could not open your account.")
-        setBusy(false)
-        return
-      }
-      setPassword("")
-      if (!connector || connector.id !== "superdemocracy") {
-        setError("Signed in, but this browser could not finish opening your account.")
-        setBusy(false)
-        return
-      }
-      if (address?.toLowerCase() === accountAddress.toLowerCase()) {
-        setPanel(null)
-        router.push("/orgs")
-        setBusy(false)
-        return
-      }
-      pending.current = { kind: "login", email: trimmedEmail }
-      setAccountKeyUnlocked(true)
-      try {
-        if (address) await disconnectAsync()
-        await connectAsync({ connector })
-      } catch {
-        setPanel(null)
-        router.push("/orgs")
-        setBusy(false)
-      }
+      await finishSignIn(trimmedEmail)
     } catch {
-      pending.current = null
-      setBusy(false)
       setError("Could not sign in.")
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -410,10 +258,10 @@ export function WelcomeCard() {
               )}
               <button
                 type="submit"
-                disabled={busy || isPending}
+                disabled={busy}
                 className="w-full rounded-lg bg-[#1B4FE0] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1239B0] disabled:opacity-50"
               >
-                {busy || isPending ? "Working…" : panel === "signup" ? "Create account" : "Log in"}
+                {busy ? "Working…" : panel === "signup" ? "Create account" : "Log in"}
               </button>
               {panel === "signup" && (
                 <button

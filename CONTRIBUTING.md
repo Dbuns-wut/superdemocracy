@@ -11,12 +11,12 @@ Local source of truth is this GitHub clone. Work on a branch, open a pull reques
 Code is what exists; it does not outrank the vision documents. The Constitution is the rulebook. A later entry in [docs/DECISION-LOG.md](docs/DECISION-LOG.md) wins over it and the technical codes after a warning (D-2026-10-29-03). If a proposed decision conflicts with one of them, warn the Chief Architect before recording it. The Chief Architect decides whether to override. If the override goes ahead, the entry holds the discussion summary and the reasons, and the clause is footnoted "amended by decision #x". When code and a document disagree, add a log entry — do not silently pick a side, and do not remove a built feature to match a narrower document.
 
 - Do not invent product behavior, scope, or copy. Ask first.
-- Member-facing UI should not expose blockchain jargon. See [docs/product-language-guide.md](docs/product-language-guide.md).
+- Member-facing UI should not expose system internals. See [docs/product-language-guide.md](docs/product-language-guide.md).
 - Prefer finishing a flow over “Coming soon.”
 
 ## Never guess
 
-If the exact file, ABI, function, storage layout, or surrounding code is unknown, inspect it first. Do not invent line numbers or assume a file structure.
+If the exact file, function, store layout, or surrounding code is unknown, inspect it first. Do not invent line numbers or assume a file structure.
 
 ## Run locally
 
@@ -25,28 +25,27 @@ npm install
 npm run dev
 ```
 
-See the README for optional Postgres and contracts.
+See the README for optional Postgres.
 
-## Contract rules
+## Server rules
 
-- Rules must not depend on frontend behavior.
-- Identity stays separate from governance.
-- Store auditor-visible sealed ballots (D-2026-10-09-01). Keep tally logic separate from ballot submission; do not put complex tally logic inside `vote()`.
-- Do not loop over all voters.
-- Emit useful events.
-- Admins cannot manipulate ballots or tallies.
+- Rules must not depend on frontend behavior. Every privileged action is checked in the route handler or store.
+- Identity stays separate from governance. The participant id is the signed-in account id, read from the session — never from the request body.
+- Store auditor-visible sealed ballots (D-2026-10-09-01). Keep tally logic separate from ballot submission.
+- Only the appointed counter reads ballots, only while verification is open. Log every such read.
+- Admins cannot read, edit, or delete ballots or alter tallies.
+- Secrets (`DATABASE_URL`, `BALLOT_ENCRYPTION_KEY`) stay server-only. Never `NEXT_PUBLIC_*`.
 
 ## Frontend rules
 
-- Never hardcode contract addresses. Read them from `.env.local` (template: `.env.example`).
+- Get the signed-in person from `useSession()`. Show people by name (`usePeople`, `PersonPicker`), not by id.
 - Preserve React hook rules.
 - Make the smallest safe change. Do not rewrite large blocks unless necessary.
+- Never show success copy unless the server confirmed the action.
 
-## Deployment and debugging
+## Debugging
 
-- Local Anvil: `http://127.0.0.1:8546`, chain id `31338`. Deploy with `contracts/deploy.sh` (`cast send`). **Never use `forge create`.**
-- Verify bytecode with `cast code`. Do not redeploy unless the evidence requires it. After address changes, remove `.next` and rebuild.
-- Diagnose in this order: chain ID / Anvil instance → bytecode → contract state → ABI → frontend reads/writes → caching → redeployment. Avoid retry loops.
+- Diagnose in this order: session → record state (org / vote / membership) → the server rule that refused → frontend state → `.next` cache. Avoid retry loops.
 
 ## Decision log
 

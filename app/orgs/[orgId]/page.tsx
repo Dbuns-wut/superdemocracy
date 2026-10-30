@@ -2,28 +2,18 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
-import { useAccount, useReadContract } from "wagmi";
-import { useSignMessage } from "wagmi";
-import { usePublicClient } from "wagmi";
-import { decodeEventLog } from "viem";
-import { safeAddress, shortAddress } from "@/lib/address";
 import { normalizeOrgId } from "@/lib/org-id";
-import { signOffchainAction } from "@/lib/sign-offchain-action";
 import type { CommunityOrg } from "@/lib/community-orgs/types";
-import { abi as registryAbi } from "@/abis/GroupRegistry.json";
-import { abi as organizationAbi } from "@/abis/Organization.json";
-import { PetitionCard } from "@/components/PetitionCard";
 import { OrgItemShareButton } from "@/components/OrgItemShareButton";
 import { OrgSettingsPanel } from "@/components/OrgSettingsPanel";
 import { PerspectivesPanel } from "@/components/PerspectivesPanel";
-import { OrganizationAddressProvider } from "@/contexts/OrganizationAddressContext";
+import { PersonPicker } from "@/components/PersonPicker";
 import { AuditorVisibilityCard } from "@/components/AuditorVisibilityCard";
-import { GovernanceWalletControl } from "@/components/GovernanceWalletControl";
-import { useGovernanceWallet } from "@/hooks/useGovernanceWallet";
-import { governanceWalletMessage } from "@/lib/governance-wallet";
 import { useOrgShortcutIcons } from "@/hooks/useOrgShortcutIcons";
+import { useSession } from "@/lib/auth/use-session";
+import { usePeople } from "@/lib/people/use-people";
 import type { OrgSettings } from "@/lib/org-settings/types";
-import type { ReferendumEducation } from "@/lib/education/types";
+import type { VoteEducation } from "@/lib/education/types";
 
 /** Spans for “no deadline” / open-ended polls and votes. */
 const MS_OPEN_ENDED = 100 * 365.25 * 24 * 60 * 60 * 1000;
@@ -66,43 +56,20 @@ type JoinFieldAnswer = {
   value: string
 }
 
-type PendingApplicationRow =
-  | { source: "onchain"; user: string; message: string; org: string }
-  | { source: "community"; id: string; user: string; message: string; answers?: JoinFieldAnswer[] };
-
-function communityEduAckKey(voteId: string, voter: string) {
-  return `sd-edu-ack:${voteId}:${voter.toLowerCase()}`;
-}
-
-const orgAbi = [
-  {
-    name: "approveMember",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "user", type: "address" }],
-    outputs: [],
-  },
-  {
-    name: "MemberAdded",
-    type: "event",
-    anonymous: false,
-    inputs: [{ indexed: true, name: "member", type: "address" }],
-  },
-];
+type PendingApplicationRow = {
+  id: string;
+  user: string;
+  message: string;
+  answers?: JoinFieldAnswer[];
+};
 
 export default function OrgPage() {
   const params = useParams();
-  const { address: userAddress } = useAccount();
-  const governance = useGovernanceWallet();
-  const { signMessageAsync } = useSignMessage();
-  const publicClient = usePublicClient();
+  const { account } = useSession();
 
   const [mounted, setMounted] = useState(false);
   const [applications, setApplications] = useState<PendingApplicationRow[]>([]);
-  const [view, setView] = useState<
-    "home" | "members" | "socials" | "polls" | "petitions" | "referendum" | "votes" | "settings"
-  >("home");
-  const [orgType, setOrgType] = useState<"ON_CHAIN" | "OFF_CHAIN">("ON_CHAIN");
+  const [view, setView] = useState<"home" | "members" | "socials" | "polls" | "votes" | "settings">("home");
   const [membersTab, setMembersTab] = useState<"all" | "pending" | "manage">("all");
   const [membersSearch, setMembersSearch] = useState("");
   const [members, setMembers] = useState<string[]>([]);
@@ -173,6 +140,7 @@ export default function OrgPage() {
       createdAt: number;
       tally: number[] | null;
       totalBallots: number | null;
+      mySubmission?: { choices: number[] | null; timestamp: number | null; linked: boolean } | null;
     }[]
   >([]);
   const [voteChoices, setVoteChoices] = useState<Record<string, number[]>>({});
@@ -184,27 +152,22 @@ export default function OrgPage() {
   const [allowVoteChange, setAllowVoteChange] = useState(false);
   const [voteStatus, setVoteStatus] = useState<string | null>(null);
   const [showCreateVoteForm, setShowCreateVoteForm] = useState(false);
-  const [auditorInput, setAuditorInput] = useState("");
+  const [auditorInput, setAuditorInput] = useState<string | null>(null);
   const [auditorBusy, setAuditorBusy] = useState(false);
+  const [auditorError, setAuditorError] = useState("");
   const [auditorReveal, setAuditorReveal] = useState<{
     voteId: string;
     title: string;
     options: string[];
     ballots: { voterId: string; choices: number[]; timestamp: number }[];
   } | null>(null);
-  const [petitionTab, setPetitionTab] = useState<"all" | "yours" | "create">("all");
-  const [petitionFeed, setPetitionFeed] = useState<
-    { petitionId: number; title: string; creator: string; blockNumber: bigint }[]
-  >([]);
-  const [petitionTitle, setPetitionTitle] = useState("");
-  const [petitionDescription, setPetitionDescription] = useState("");
-  const [petitionRefresh, setPetitionRefresh] = useState(0);
   const [manageSearch, setManageSearch] = useState("");
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteQuery, setInviteQuery] = useState("");
-  const [inviteResults, setInviteResults] = useState<string[]>([]);
-  const [inviteSearchLoading, setInviteSearchLoading] = useState(false);
+  const [invitee, setInvitee] = useState<string | null>(null);
   const [inviteSending, setInviteSending] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [applicationError, setApplicationError] = useState("");
+  const [membersNotice, setMembersNotice] = useState("");
   const [messageboardMutes, setMessageboardMutes] = useState<
     { user: string; mutedUntil: number }[]
   >([]);
@@ -217,15 +180,12 @@ export default function OrgPage() {
   );
   const [muteCustomHours, setMuteCustomHours] = useState("24");
   const [muteSaving, setMuteSaving] = useState(false);
-  const [search, setSearch] = useState("");
-  const [showSort, setShowSort] = useState(false);
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "popular">("newest");
   const [showSocialSort, setShowSocialSort] = useState(false);
   const [socialSortOrder, setSocialSortOrder] = useState<"recent" | "popular" | "newest" | "oldest">("recent");
   const [socialInteractionRecency, setSocialInteractionRecency] = useState<Record<string, number>>({});
   const [orgDisplayName, setOrgDisplayName] = useState<string>("");
-  const [offchainOrg, setOffchainOrg] = useState<CommunityOrg | null>(null);
-  const [offchainLoad, setOffchainLoad] = useState<"idle" | "loading" | "ok" | "missing">("idle");
+  const [orgRecord, setOrgRecord] = useState<CommunityOrg | null>(null);
+  const [orgLoad, setOrgLoad] = useState<"idle" | "loading" | "ok" | "missing">("idle");
   const [orgHomeBannerUrl, setOrgHomeBannerUrl] = useState("");
   const [orgHomeProfileLogoUrl, setOrgHomeProfileLogoUrl] = useState("");
   const [orgProfileLogoDragActive, setOrgProfileLogoDragActive] = useState(false);
@@ -251,7 +211,7 @@ export default function OrgPage() {
   const [codeOfConductAdminEditing, setCodeOfConductAdminEditing] = useState(false);
   const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
   const [perspectivesVoteId, setPerspectivesVoteId] = useState<string | null>(null);
-  const [voteEducation, setVoteEducation] = useState<ReferendumEducation | null>(null);
+  const [voteEducation, setVoteEducation] = useState<VoteEducation | null>(null);
   const [voteEducationLoading, setVoteEducationLoading] = useState(false);
   const [communityEduAck, setCommunityEduAck] = useState<Record<string, boolean>>({});
 
@@ -260,68 +220,31 @@ export default function OrgPage() {
     [codeOfConductText, codeOfConductDocDataUrl]
   );
 
-  const orgAddress = params?.address as string;
+  const orgParam = params?.orgId as string;
 
-  const userAddr = safeAddress(userAddress);
-  const chainAddr = safeAddress(governance.address ?? undefined);
-  const orgAddr = safeAddress(orgAddress);
-  const offchainId = !orgAddr ? normalizeOrgId(orgAddress) : null;
-  const orgKey = orgAddr ?? offchainId ?? null;
-  const offchainEffectiveMembership = offchainOrg?.membershipMode;
-  const membershipMode =
-    orgAddr
-      ? 1
-      : offchainEffectiveMembership === "Manual"
-        ? 1
-        : 0;
+  const userId = account?.id ?? null;
+  const orgId = normalizeOrgId(orgParam ?? "");
+  const orgKey = orgId;
+  const isGovernance = orgRecord?.kind === "governance";
 
-  const fallbackOrgName = offchainId && !orgAddr
-    ? `Organization ${offchainId.slice(0, 8)}…`
-    : orgAddr
-    ? `Organization ${orgAddr.slice(0, 6)}...${orgAddr.slice(-4)}`
-    : "Organization";
-  const registryAddress = process.env.NEXT_PUBLIC_GROUP_REGISTRY as `0x${string}` | undefined;
-  const { data: isOrgAdmin } = useReadContract({
-    address: orgAddr as `0x${string}` | undefined,
-    abi: [
-      {
-        name: "isAdmin",
-        type: "function",
-        stateMutability: "view",
-        inputs: [{ name: "user", type: "address" }],
-        outputs: [{ type: "bool" }],
-      },
-    ],
-    functionName: "isAdmin",
-    args: chainAddr ? [chainAddr] : undefined,
-    query: { enabled: !!mounted && !!orgAddr && !!chainAddr },
-  });
+  const fallbackOrgName = orgId ? `Organization ${orgId.slice(0, 8)}…` : "Organization";
 
-  const isAdmin = orgAddr
-    ? isOrgAdmin === true
-    : offchainOrg
-      ? userAddr?.toLowerCase() === offchainOrg.creatorAddress.toLowerCase()
-      : false;
+  const isAdmin = Boolean(orgRecord && userId && userId.toLowerCase() === orgRecord.creatorId.toLowerCase());
 
   const isDesignatedAuditor = Boolean(
-    offchainId &&
-      userAddr &&
-      offchainOrg?.auditorAddress &&
-      userAddr.toLowerCase() === offchainOrg.auditorAddress.toLowerCase() &&
-      userAddr.toLowerCase() !== offchainOrg.creatorAddress.toLowerCase()
+    userId &&
+      orgRecord?.auditorId &&
+      userId.toLowerCase() === orgRecord.auditorId.toLowerCase() &&
+      userId.toLowerCase() !== orgRecord.creatorId.toLowerCase()
   );
 
   const canInviteMembers = useMemo(
-    () =>
-      isAdmin &&
-      membershipMode === 1 &&
-      (Boolean(orgAddr) ||
-        Boolean(offchainId && offchainOrg?.membershipMode === "Manual")),
-    [isAdmin, membershipMode, orgAddr, offchainId, offchainOrg?.membershipMode]
+    () => isAdmin && orgRecord?.membershipMode === "Manual",
+    [isAdmin, orgRecord?.membershipMode]
   );
 
-  /** URL segment for `/orgs/[address]` share links (matches the address bar). */
-  const shareOrgSlug = orgAddress ?? "";
+  /** URL segment for `/orgs/[orgId]` share links (matches the address bar). */
+  const shareOrgSlug = orgParam ?? "";
 
   const pinContentToOrgHome = useCallback((note: string) => {
     const n = note.trim();
@@ -357,50 +280,46 @@ export default function OrgPage() {
   }, [pollDetailsPinnedId]);
 
   useEffect(() => {
-    if (offchainId) {
-      setOrgType("OFF_CHAIN");
-    }
-  }, [offchainId]);
-
-  useEffect(() => {
-    if (!offchainId) {
-      setOffchainOrg(null);
-      setOffchainLoad("idle");
+    if (!orgId) {
+      setOrgRecord(null);
+      setOrgLoad("idle");
       return;
     }
-    setOffchainLoad("loading");
+    setOrgLoad("loading");
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/community-orgs/${offchainId}`);
+        const res = await fetch(`/api/community-orgs/${orgId}`, { credentials: "include" });
         if (cancelled) return;
         if (res.ok) {
           const data = await res.json();
-          setOffchainOrg(data.org);
+          setOrgRecord(data.org);
           setOrgDisplayName(data.org?.title ?? "");
-          setOffchainLoad("ok");
+          setOrgLoad("ok");
         } else {
-          setOffchainOrg(null);
-          setOffchainLoad("missing");
+          setOrgRecord(null);
+          setOrgLoad("missing");
         }
       } catch {
         if (!cancelled) {
-          setOffchainOrg(null);
-          setOffchainLoad("missing");
+          setOrgRecord(null);
+          setOrgLoad("missing");
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [offchainId]);
+  }, [orgId]);
 
   useEffect(() => {
-    if (!mounted || !offchainId) return;
+    if (!mounted || !orgId) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/community-orgs/${encodeURIComponent(offchainId)}/members`);
+        const res = await fetch(`/api/community-orgs/${encodeURIComponent(orgId)}/members`, {
+          credentials: "include",
+        });
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (!cancelled && Array.isArray(data.members)) {
@@ -413,45 +332,18 @@ export default function OrgPage() {
     return () => {
       cancelled = true;
     };
-  }, [mounted, offchainId]);
+  }, [mounted, orgId, userId]);
 
   useEffect(() => {
     if (!mounted) return;
 
     const fetchApps = async () => {
       const rows: PendingApplicationRow[] = [];
-
-      if (orgAddr) {
-        try {
-          const res = await fetch("http://localhost:3001/applications/all");
-          const data = await res.json();
-
-          const target = safeAddress(orgAddress);
-
-          const filtered = data.filter(
-            (a: { org?: string; status?: string }) =>
-              a.org === target && a.status === "pending"
-          );
-
-          rows.push(
-            ...filtered.map(
-              (a: { user: string; message: string; org: string }) => ({
-                source: "onchain" as const,
-                user: a.user,
-                message: a.message,
-                org: a.org,
-              })
-            )
-          );
-        } catch (err) {
-          console.error("Failed to fetch applications", err);
-        }
-      }
-
-      if (offchainId && offchainOrg?.membershipMode === "Manual") {
+      if (orgId && isAdmin && orgRecord?.membershipMode === "Manual") {
         try {
           const res = await fetch(
-            `/api/community-applications?orgId=${encodeURIComponent(offchainId)}&status=pending`
+            `/api/community-applications?orgId=${encodeURIComponent(orgId)}&status=pending`,
+            { credentials: "include" }
           );
           if (res.ok) {
             const data = await res.json();
@@ -459,7 +351,6 @@ export default function OrgPage() {
             rows.push(
               ...apps.map(
                 (a: { id: string; user: string; message: string; answers?: JoinFieldAnswer[] }) => ({
-                  source: "community" as const,
                   id: a.id,
                   user: a.user,
                   message: a.message,
@@ -469,15 +360,14 @@ export default function OrgPage() {
             );
           }
         } catch (err) {
-          console.error("Failed to fetch community applications", err);
+          console.error("Failed to fetch applications", err);
         }
       }
-
       setApplications(rows);
     };
 
     fetchApps();
-  }, [mounted, orgAddress, orgAddr, offchainId, offchainOrg?.membershipMode]);
+  }, [mounted, orgId, isAdmin, orgRecord?.membershipMode]);
 
   useEffect(() => {
     if (!orgKey) return;
@@ -498,78 +388,28 @@ export default function OrgPage() {
     };
   }, [orgKey]);
 
-  useEffect(() => {
-    if (!showInviteModal) return;
-    const q = inviteQuery.trim();
-    let cancelled = false;
-    const t = setTimeout(async () => {
-      setInviteSearchLoading(true);
-      try {
-        const res = await fetch(
-          `/api/users/search?q=${encodeURIComponent(q)}&limit=40`
-        );
-        const data = await res.json();
-        if (!cancelled && Array.isArray(data.addresses)) {
-          const exclude = new Set(members.map((m) => m.toLowerCase()));
-          setInviteResults(
-            data.addresses.filter(
-              (a: string) => !exclude.has(a.toLowerCase())
-            )
-          );
-        }
-      } catch {
-        if (!cancelled) setInviteResults([]);
-      } finally {
-        if (!cancelled) setInviteSearchLoading(false);
-      }
-    }, 280);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [inviteQuery, showInviteModal, members]);
 
-  useEffect(() => {
-    if (!publicClient || !orgAddr) return;
 
-    const fetchMembers = async () => {
-      try {
-        const logs = await publicClient.getLogs({
-          address: orgAddr as `0x${string}`,
-          fromBlock: 0n,
-          toBlock: "latest",
-        });
+  const isViewerMember = Boolean(
+    userId &&
+      (members.some((m) => m.toLowerCase() === userId.toLowerCase()) ||
+        (orgRecord && orgRecord.creatorId.toLowerCase() === userId.toLowerCase()))
+  );
 
-        const seen = new Set<string>();
-        for (const log of logs) {
-          try {
-            const decoded = decodeEventLog({
-              abi: orgAbi,
-              data: log.data,
-              topics: log.topics,
-            });
-
-            if (decoded.eventName !== "MemberAdded") continue;
-
-            const args = decoded.args as { member?: string };
-            const member = safeAddress(args.member as string);
-            if (member) seen.add(member);
-          } catch {
-            // Ignore unrelated logs.
-          }
-        }
-
-        setMembers(Array.from(seen));
-      } catch (err) {
-        console.error("Failed to fetch members", err);
-      }
-    };
-
-    fetchMembers();
-  }, [publicClient, orgAddr]);
+  const peopleIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const m of members) ids.add(m);
+    for (const a of applications) ids.add(a.user);
+    for (const p of posts) ids.add(p.user);
+    for (const b of auditorReveal?.ballots ?? []) ids.add(b.voterId);
+    if (orgRecord?.auditorId) ids.add(orgRecord.auditorId);
+    if (orgRecord?.creatorId) ids.add(orgRecord.creatorId);
+    return Array.from(ids);
+  }, [members, applications, posts, auditorReveal, orgRecord?.auditorId, orgRecord?.creatorId]);
+  const { nameOf } = usePeople(peopleIds);
 
   const filteredMembers = members.filter((m) =>
-    m.toLowerCase().includes(membersSearch.toLowerCase())
+    nameOf(m).toLowerCase().includes(membersSearch.toLowerCase())
   );
 
   const muteByMemberLower = useMemo(() => {
@@ -584,8 +424,7 @@ export default function OrgPage() {
     if (!orgKey) return;
     try {
       const qs = new URLSearchParams({ orgKey });
-      if (userAddr) qs.set("viewer", userAddr);
-      const res = await fetch(`/api/messageboard-mutes?${qs.toString()}`);
+      const res = await fetch(`/api/messageboard-mutes?${qs.toString()}`, { credentials: "include" });
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data.mutes)) setMessageboardMutes(data.mutes);
@@ -595,129 +434,19 @@ export default function OrgPage() {
     } catch {
       /* ignore */
     }
-  }, [orgKey, userAddr]);
+  }, [orgKey]);
 
   useEffect(() => {
     if (!mounted || !orgKey) return;
+    // userId is a dependency on purpose: the viewer's own mute state comes from the session.
     loadMessageboardMuteState();
-  }, [mounted, orgKey, userAddr, loadMessageboardMuteState]);
+  }, [mounted, orgKey, userId, loadMessageboardMuteState]);
 
   useEffect(() => {
     if (socialTab !== "messageboard" || !orgKey) return;
     loadMessageboardMuteState();
   }, [socialTab, orgKey, loadMessageboardMuteState]);
 
-  useEffect(() => {
-    if (!publicClient || !registryAddress || !orgAddr) return;
-
-    const loadOrgTitle = async () => {
-      try {
-        const logs = await publicClient.getLogs({
-          address: registryAddress,
-          fromBlock: 0n,
-          toBlock: "latest",
-        });
-
-        for (let i = logs.length - 1; i >= 0; i -= 1) {
-          const log = logs[i];
-          try {
-            const decoded = decodeEventLog({
-              abi: registryAbi,
-              data: log.data,
-              topics: log.topics,
-            });
-
-            if (decoded.eventName !== "GroupCreated") continue;
-
-            const args = decoded.args as { group?: string; title?: string };
-            const groupAddr = safeAddress(args.group as string);
-            if (groupAddr === orgAddr) {
-              setOrgDisplayName((args.title as string) || fallbackOrgName);
-              return;
-            }
-          } catch {
-            // Ignore non-GroupCreated logs.
-          }
-        }
-
-        setOrgDisplayName(fallbackOrgName);
-      } catch (err) {
-        console.error("Failed to load org title", err);
-        setOrgDisplayName(fallbackOrgName);
-      }
-    };
-
-    loadOrgTitle();
-  }, [publicClient, registryAddress, orgAddr, fallbackOrgName]);
-
-  useEffect(() => {
-    if (!orgAddr) return;
-    const loadOrgType = async () => {
-      try {
-        const res = await fetch(`/api/org-types/${encodeURIComponent(orgAddr)}`);
-        const data = await res.json();
-        setOrgType(data?.type === "OFF_CHAIN" ? "OFF_CHAIN" : "ON_CHAIN");
-      } catch {
-        setOrgType("ON_CHAIN");
-      }
-    };
-    loadOrgType();
-  }, [orgAddr]);
-
-  useEffect(() => {
-    if (!publicClient || !orgAddr) {
-      setPetitionFeed([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const logs = await publicClient.getLogs({
-          address: orgAddr,
-          fromBlock: 0n,
-          toBlock: "latest",
-        });
-        const items: {
-          petitionId: number;
-          title: string;
-          creator: string;
-          blockNumber: bigint;
-        }[] = [];
-        for (const log of logs) {
-          try {
-            const decoded = decodeEventLog({
-              abi: organizationAbi,
-              data: log.data,
-              topics: log.topics,
-            });
-            if (decoded.eventName !== "PetitionCreated") continue;
-            const args = decoded.args as unknown as {
-              petitionId: bigint;
-              creator: string;
-              title: string;
-            };
-            items.push({
-              petitionId: Number(args.petitionId),
-              title: args.title,
-              creator: args.creator,
-              blockNumber: log.blockNumber,
-            });
-          } catch {
-            /* ignore */
-          }
-        }
-        items.sort((a, b) =>
-          a.blockNumber === b.blockNumber ? 0 : a.blockNumber > b.blockNumber ? -1 : 1
-        );
-        if (!cancelled) setPetitionFeed(items);
-      } catch (err) {
-        console.error("Failed to load org petitions", err);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [publicClient, orgAddr, petitionRefresh]);
 
   useEffect(() => {
     if (!mounted || !orgKey) return;
@@ -822,43 +551,39 @@ export default function OrgPage() {
     if (!orgKey) return;
     try {
       const q = new URLSearchParams({ orgId: orgKey });
-      if (userAddr) q.set("voter", userAddr);
-      const res = await fetch(`/api/polls?${q.toString()}`);
+      const res = await fetch(`/api/polls?${q.toString()}`, { credentials: "include" });
       const data = await res.json();
       setPolls(Array.isArray(data?.polls) ? data.polls : []);
     } catch (err) {
       console.error("Failed to fetch polls", err);
       setPolls([]);
     }
-  }, [orgKey, userAddr]);
+  }, [orgKey]);
 
   useEffect(() => {
     if (!mounted || !orgKey) return;
+    // Re-fetch when the signed-in person changes so `currentUserChoices` is theirs.
     void reloadPolls();
-  }, [mounted, orgKey, reloadPolls]);
-
-  useEffect(() => {
-    if (orgType === "ON_CHAIN" && socialTab === "votes") setSocialTab("all");
-  }, [orgType, socialTab]);
+  }, [mounted, orgKey, userId, reloadPolls]);
 
   const reloadCommunityVotes = useCallback(async () => {
     if (!orgKey) return;
     try {
       const q = new URLSearchParams({ orgId: orgKey });
-      if (userAddr) q.set("viewer", userAddr);
-      const res = await fetch(`/api/votes?${q.toString()}`);
+      const res = await fetch(`/api/votes?${q.toString()}`, { credentials: "include" });
       const data = await res.json();
       setCommunityVotes(Array.isArray(data?.votes) ? data.votes : []);
     } catch (err) {
       console.error("Failed to fetch community votes", err);
       setCommunityVotes([]);
     }
-  }, [orgKey, userAddr]);
+  }, [orgKey]);
 
   useEffect(() => {
     if (!mounted || !orgKey) return;
+    // Re-fetch when the signed-in person changes so `mySubmission` and the tally visibility are theirs.
     void reloadCommunityVotes();
-  }, [mounted, orgKey, reloadCommunityVotes]);
+  }, [mounted, orgKey, userId, reloadCommunityVotes]);
 
   const filteredPosts = posts.filter((post) =>
     post.text.toLowerCase().includes(socialSearch.toLowerCase())
@@ -967,27 +692,6 @@ export default function OrgPage() {
     });
   }, [filteredVotes, socialInteractionRecency, socialSortOrder]);
 
-  const addressLower = chainAddr?.toLowerCase();
-
-  const filteredOrgPetitions = useMemo(() => {
-    return petitionFeed
-      .filter((e) => e.title.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => {
-        if (sortOrder === "newest") return a.blockNumber > b.blockNumber ? -1 : 1;
-        if (sortOrder === "oldest") return a.blockNumber < b.blockNumber ? -1 : 1;
-        if (sortOrder === "popular") return a.blockNumber > b.blockNumber ? -1 : 1;
-        return 0;
-      });
-  }, [petitionFeed, search, sortOrder]);
-
-  const yourOrgPetitions = useMemo(
-    () =>
-      filteredOrgPetitions.filter(
-        (e) => e.creator.toLowerCase() === addressLower
-      ),
-    [filteredOrgPetitions, addressLower]
-  );
-
   const openEndedLabel = (start: number, end: number) =>
     end - start >= MS_OPEN_ENDED * 0.99
       ? "No end date (open)"
@@ -1022,31 +726,11 @@ export default function OrgPage() {
     viewerMessageboardMutedUntil !== null &&
     viewerMessageboardMutedUntil > Date.now();
 
-  const urlIsValid = !!(orgAddr || offchainId);
-  const canShowMain = urlIsValid && (!offchainId || offchainLoad === "ok");
+  const urlIsValid = !!orgId;
+  const canShowMain = urlIsValid && orgLoad === "ok";
   const orgDescriptionText =
-    (offchainOrg?.description && offchainOrg.description.trim()) ||
+    (orgRecord?.description && orgRecord.description.trim()) ||
     "This organization has not added a description yet.";
-
-  const handleCreatePetition = async () => {
-    if (!orgAddr || !petitionTitle.trim() || !petitionDescription.trim()) {
-      alert("Title and description are required");
-      return;
-    }
-    try {
-      await governance.writeAndConfirm({
-        address: orgAddr,
-        abi: organizationAbi,
-        functionName: "createPetition",
-        args: [petitionTitle.trim(), petitionDescription.trim(), BigInt(1)],
-      });
-      setPetitionTitle("");
-      setPetitionDescription("");
-      setPetitionRefresh((n) => n + 1);
-    } catch (err) {
-      alert(governanceWalletMessage(err));
-    }
-  };
 
   const handleCreateEvent = () => {
     const title = eventTitle.trim();
@@ -1217,7 +901,7 @@ export default function OrgPage() {
       }
     }
 
-    if (!userAddr) {
+    if (!userId) {
       setPollStatus("Sign in to create a poll.");
       return;
     }
@@ -1230,31 +914,13 @@ export default function OrgPage() {
       startTime: startMs,
       endTime: endMs,
     };
-    let signedPayload: { nonce: string; issuedAt: number; expiresAt: number; signature: string };
-    try {
-      signedPayload = await signAction({
-        action: "polls.create",
-        resourceId: orgKey,
-        voterId: userAddr,
-        payload: {
-          title: createBody.title,
-          description: createBody.description,
-          options: createBody.options,
-          type: createBody.type,
-          startTime: createBody.startTime,
-          endTime: createBody.endTime,
-        },
-      });
-    } catch {
-      setPollStatus("Poll not created. Signature request was canceled or failed.");
-      return;
-    }
     const res = await fetch("/api/polls/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...createBody, voterId: userAddr, ...signedPayload }),
+      credentials: "include",
+      body: JSON.stringify(createBody),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setPollStatus(data?.error || "Failed to create poll.");
       return;
@@ -1279,94 +945,138 @@ export default function OrgPage() {
     setShowCreatePollForm(false);
   };
 
-  const signAction = async (input: {
-    action: string;
-    resourceId: string;
-    voterId: string;
-    choices?: number[];
-    payload?: unknown;
-  }) =>
-    signOffchainAction({
-      ...input,
-      signMessageAsync,
-    });
-
   const handleJoinCommunityOrg = async () => {
-    if (!userAddr || !offchainId) return;
+    if (!userId || !orgId) return;
     try {
-      const signed = await signAction({
-        action: "community.members.join",
-        resourceId: offchainId,
-        voterId: userAddr,
-        payload: { address: userAddr },
-      });
-      const res = await fetch(`/api/community-orgs/${encodeURIComponent(offchainId)}/members`, {
+      const res = await fetch(`/api/community-orgs/${encodeURIComponent(orgId)}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: userAddr, ...signed }),
+        credentials: "include",
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(typeof data.error === "string" ? data.error : "Could not join");
+        setVoteStatus(typeof data.error === "string" ? data.error : "Could not join.");
         return;
       }
       if (Array.isArray(data.members)) setMembers(data.members);
     } catch {
-      alert("Join canceled or failed.");
+      setVoteStatus("Could not join. Check your connection and try again.");
+    }
+  };
+
+  const handleClearMute = async (member: string) => {
+    if (!userId || !orgKey) return;
+    setMuteSaving(true);
+    try {
+      const res = await fetch("/api/messageboard-mutes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orgKey, targetUser: member }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(typeof data.error === "string" ? data.error : "Could not unmute");
+        return;
+      }
+      await loadMessageboardMuteState();
+    } catch {
+      alert("Could not unmute. Check your connection and try again.");
+    } finally {
+      setMuteSaving(false);
+    }
+  };
+
+  const handleApplicationDecision = async (app: PendingApplicationRow, decision: "approve" | "reject") => {
+    if (!userId) return;
+    setApplicationError("");
+    try {
+      const res = await fetch(`/api/community-applications/${encodeURIComponent(app.id)}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ decision }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setApplicationError(typeof data.error === "string" ? data.error : `Could not ${decision}.`);
+        return;
+      }
+      setApplications((prev) => prev.filter((a) => a.id !== app.id));
+      if (decision === "approve") {
+        setMembers((prev) => (prev.some((m) => m.toLowerCase() === app.user.toLowerCase()) ? prev : [...prev, app.user]));
+      }
+    } catch {
+      setApplicationError(`Could not ${decision}. Check your connection and try again.`);
+    }
+  };
+
+  const handleSendInvite = async () => {
+    if (!userId || !invitee || !orgId) return;
+    setInviteSending(true);
+    setInviteError("");
+    try {
+      const res = await fetch("/api/member-invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orgSlug: orgId, invitee }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setInviteError(typeof data.error === "string" ? data.error : "Could not send invite.");
+        return;
+      }
+      setShowInviteModal(false);
+      setInvitee(null);
+      setVoteStatus(null);
+      setMembersNotice("Invitation sent. They can open it from the bell icon.");
+    } catch {
+      setInviteError("Could not send invite. Check your connection and try again.");
+    } finally {
+      setInviteSending(false);
     }
   };
 
   const handleSetAuditor = async () => {
-    if (!userAddr || !offchainId || !auditorInput.trim()) return;
+    if (!userId || !orgId || !auditorInput) return;
     setAuditorBusy(true);
+    setAuditorError("");
     try {
-      const auditorAddress = auditorInput.trim();
-      const signed = await signAction({
-        action: "community.orgs.setAuditor",
-        resourceId: offchainId,
-        voterId: userAddr,
-        payload: { auditorAddress },
+      const res = await fetch(`/api/community-orgs/${encodeURIComponent(orgId)}/auditor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ auditorId: auditorInput }),
       });
-      const res = await fetch(
-        `/api/community-orgs/${encodeURIComponent(offchainId)}/auditor`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ auditorAddress, voterId: userAddr, ...signed }),
-        }
-      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(typeof data.error === "string" ? data.error : "Could not set auditor");
+        setAuditorError(typeof data.error === "string" ? data.error : "Could not appoint counter.");
         return;
       }
-      if (data.org) setOffchainOrg(data.org as CommunityOrg);
-      setAuditorInput("");
-      setVoteStatus("Auditor designated.");
+      if (data.org) setOrgRecord(data.org as CommunityOrg);
+      setAuditorInput(null);
+      setVoteStatus("Counter appointed.");
     } catch {
-      alert("Canceled or failed.");
+      setAuditorError("Could not appoint counter. Check your connection and try again.");
     } finally {
       setAuditorBusy(false);
     }
   };
 
   const handleVerificationWindow = async (voteId: string, action: "open" | "close") => {
-    if (!userAddr) return;
+    if (!userId) return;
     try {
-      const signed = await signAction({
-        action: "votes.verification",
-        resourceId: voteId,
-        voterId: userAddr,
-        payload: { step: action },
-      });
       const res = await fetch(`/api/votes/${encodeURIComponent(voteId)}/verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, voterId: userAddr, ...signed }),
+        credentials: "include",
+        body: JSON.stringify({ action }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(typeof data.error === "string" ? data.error : "Could not update verification");
+        setVoteStatus(typeof data.error === "string" ? data.error : "Could not update verification.");
         return;
       }
       if (data.vote) {
@@ -1376,7 +1086,7 @@ export default function OrgPage() {
       }
       setVoteStatus(action === "open" ? "Verification window open." : "Verification window closed.");
     } catch {
-      alert("Canceled or failed.");
+      setVoteStatus("Could not update verification. Check your connection and try again.");
     }
   };
 
@@ -1385,27 +1095,14 @@ export default function OrgPage() {
     title: string;
     options: string[];
   }) => {
-    if (!userAddr) return;
+    if (!userId) return;
     try {
-      const signed = await signAction({
-        action: "votes.audit",
-        resourceId: vote.id,
-        voterId: userAddr,
+      const res = await fetch(`/api/votes/${encodeURIComponent(vote.id)}/ballots`, {
+        credentials: "include",
       });
-      const qs = new URLSearchParams({
-        auditor: "1",
-        voterId: userAddr,
-        nonce: signed.nonce,
-        issuedAt: String(signed.issuedAt),
-        expiresAt: String(signed.expiresAt),
-        signature: signed.signature,
-      });
-      const res = await fetch(
-        `/api/votes/${encodeURIComponent(vote.id)}/ballots?${qs.toString()}`
-      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(typeof data.error === "string" ? data.error : "Reveal denied");
+        setVoteStatus(typeof data.error === "string" ? data.error : "Review denied.");
         return;
       }
       setAuditorReveal({
@@ -1415,12 +1112,12 @@ export default function OrgPage() {
         ballots: Array.isArray(data.ballots) ? data.ballots : [],
       });
     } catch {
-      alert("Canceled or failed.");
+      setVoteStatus("Could not load ballots. Check your connection and try again.");
     }
   };
 
   const handleVotePoll = async (pollId: string) => {
-    if (!userAddr) {
+    if (!userId) {
       setPollStatus("Sign in to vote.");
       return;
     }
@@ -1434,31 +1131,15 @@ export default function OrgPage() {
       setPollStatus("Pick at least one option.");
       return;
     }
-    let signedPayload: { nonce: string; issuedAt: number; expiresAt: number; signature: string };
-    try {
-      signedPayload = await signAction({
-        action: "polls.vote",
-        resourceId: pollId,
-        voterId: userAddr,
-        choices,
-      });
-    } catch {
-      setPollStatus("Vote not submitted. Signature request was canceled or failed.");
-      return;
-    }
     const res = await fetch("/api/polls/vote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pollId,
-        voterId: userAddr,
-        choices,
-        ...signedPayload,
-      }),
+      credentials: "include",
+      body: JSON.stringify({ pollId, choices }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setPollStatus(data?.error || "Vote not submitted securely. Please try again.");
+      setPollStatus(data?.error || "Answer not submitted. Please try again.");
       return;
     }
     setPollVotes((prev) => {
@@ -1488,7 +1169,7 @@ export default function OrgPage() {
       setVoteStatus("Invalid start or end time.");
       return;
     }
-    if (!userAddr) {
+    if (!userId) {
       setVoteStatus("Sign in to create a vote.");
       return;
     }
@@ -1501,31 +1182,13 @@ export default function OrgPage() {
       endTime: endMs,
       allowVoteChange,
     };
-    let signedPayload: { nonce: string; issuedAt: number; expiresAt: number; signature: string };
-    try {
-      signedPayload = await signAction({
-        action: "votes.create",
-        resourceId: orgKey,
-        voterId: userAddr,
-        payload: {
-          title: createBody.title,
-          description: createBody.description,
-          options: createBody.options,
-          startTime: createBody.startTime,
-          endTime: createBody.endTime,
-          allowVoteChange: createBody.allowVoteChange,
-        },
-      });
-    } catch {
-      setVoteStatus("Vote not created. Signature request was canceled or failed.");
-      return;
-    }
     const res = await fetch("/api/votes/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...createBody, voterId: userAddr, ...signedPayload }),
+      credentials: "include",
+      body: JSON.stringify(createBody),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setVoteStatus(data?.error || "Failed to create vote.");
       return;
@@ -1546,11 +1209,11 @@ export default function OrgPage() {
   };
 
   const handleCastCommunityVote = async (voteId: string) => {
-    if (!userAddr) {
+    if (!userId) {
       setVoteStatus("Sign in to vote.");
       return;
     }
-    const educationRequired = orgType === "OFF_CHAIN" && orgSettings?.educationBeforeVote !== false;
+    const educationRequired = isGovernance || orgSettings?.educationBeforeVote !== false;
     const acked = Boolean(communityEduAck[voteId]);
     if (educationRequired && !acked) {
       setPerspectivesVoteId(voteId);
@@ -1562,30 +1225,15 @@ export default function OrgPage() {
       setVoteStatus("Pick at least one option.");
       return;
     }
-    let signedPayload: { nonce: string; issuedAt: number; expiresAt: number; signature: string };
-    try {
-      signedPayload = await signAction({
-        action: "votes.cast",
-        resourceId: voteId,
-        voterId: userAddr,
-        choices,
-      });
-    } catch {
-      setVoteStatus("Ballot not submitted. Signature request was canceled or failed.");
-      return;
-    }
     const res = await fetch("/api/votes/cast", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        voteId,
-        voterId: userAddr,
-        choices,
-        ...signedPayload,
-      }),
+      credentials: "include",
+      body: JSON.stringify({ voteId, choices }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (res.status === 428) setPerspectivesVoteId(voteId);
       setVoteStatus(data?.error || "Ballot not submitted. Try again.");
       return;
     }
@@ -1603,10 +1251,15 @@ export default function OrgPage() {
     setVoteEducationLoading(true);
     ;(async () => {
       try {
-        const res = await fetch(`/api/education/${encodeURIComponent(perspectivesVoteId)}`);
+        const res = await fetch(`/api/education/${encodeURIComponent(perspectivesVoteId)}`, {
+          credentials: "include",
+        });
         const data = await res.json().catch(() => ({}));
         if (!cancelled && res.ok) {
           setVoteEducation(data.education ?? null);
+          if (data.acknowledged === true) {
+            setCommunityEduAck((prev) => ({ ...prev, [perspectivesVoteId]: true }));
+          }
         }
       } finally {
         if (!cancelled) setVoteEducationLoading(false);
@@ -1617,30 +1270,26 @@ export default function OrgPage() {
     };
   }, [perspectivesVoteId]);
 
+  // Education acknowledgements live on the server (enforced at cast time); reset the local mirror on account change.
   useEffect(() => {
-    if (!userAddr) {
-      setCommunityEduAck({});
-      return;
-    }
-    const next: Record<string, boolean> = {};
-    for (const vote of communityVotes) {
-      try {
-        if (localStorage.getItem(communityEduAckKey(vote.id, userAddr)) === "1") {
-          next[vote.id] = true;
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-    setCommunityEduAck(next);
-  }, [userAddr, communityVotes]);
+    setCommunityEduAck({});
+  }, [userId]);
 
-  const acknowledgeCommunityEducation = (voteId: string) => {
-    if (!userAddr) return;
+  const acknowledgeCommunityEducation = async (voteId: string) => {
+    if (!userId) return;
     try {
-      localStorage.setItem(communityEduAckKey(voteId, userAddr), "1");
+      const res = await fetch(`/api/education/${encodeURIComponent(voteId)}/acknowledge`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setVoteStatus(typeof data.error === "string" ? data.error : "Could not record that you read the education.");
+        return;
+      }
     } catch {
-      /* ignore */
+      setVoteStatus("Could not record that you read the education. Check your connection and try again.");
+      return;
     }
     setCommunityEduAck((prev) => ({ ...prev, [voteId]: true }));
     setPerspectivesVoteId(null);
@@ -1651,7 +1300,7 @@ export default function OrgPage() {
     postId: string,
     reaction: "like" | "love" | "laugh" | "disagree"
   ) => {
-    if (!userAddr) {
+    if (!userId) {
       alert("Sign in first");
       return;
     }
@@ -1664,12 +1313,8 @@ export default function OrgPage() {
       const res = await fetch("/api/messageboard-react-proxy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          postId,
-          user: userAddr,
-          reaction,
-          org: orgKey,
-        }),
+        credentials: "include",
+        body: JSON.stringify({ postId, reaction, org: orgKey }),
       });
 
       const data = await res.json();
@@ -1889,7 +1534,24 @@ export default function OrgPage() {
                 })}
               </div>
             )}
-            {votingOpen && (
+            {vote.mySubmission && (
+              <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                <p className="font-medium">Your submission</p>
+                {vote.mySubmission.linked && vote.mySubmission.choices ? (
+                  <p className="mt-0.5">
+                    {vote.mySubmission.choices.map((i) => vote.options[i] ?? `Option ${i + 1}`).join(", ")}
+                    {vote.mySubmission.timestamp ? (
+                      <span className="text-emerald-700"> · {new Date(vote.mySubmission.timestamp).toLocaleString()}</span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-emerald-800">
+                    Your ballot was recorded. This vote uses a secret count, so your choices are not stored with your name.
+                  </p>
+                )}
+              </div>
+            )}
+            {votingOpen && (!vote.mySubmission || vote.allowVoteChange) && (
               <>
                 <div className="mt-2 space-y-1">
                   {vote.options.map((opt, idx) => {
@@ -1918,15 +1580,15 @@ export default function OrgPage() {
                     onClick={() => handleCastCommunityVote(vote.id)}
                     className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
                   >
-                    Vote
+                    {vote.mySubmission ? "Change vote" : "Vote"}
                   </button>
                 </div>
               </>
             )}
-            {!votingOpen && !showResults && userAddr && (
+            {!votingOpen && !showResults && userId && (
               <p className="mt-2 text-xs text-gray-500">Results visible to members after voting.</p>
             )}
-            {offchainId && !votingOpen && Date.now() > vote.endTime && (
+            {!votingOpen && Date.now() > vote.endTime && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {isAdmin && vote.status !== "verification" && (
                   <button
@@ -1974,7 +1636,6 @@ export default function OrgPage() {
   );
 
   return (
-    <OrganizationAddressProvider address={orgAddr}>
     <div className="flex min-h-screen bg-white text-zinc-900">
       <div className="w-48 border-r border-zinc-200 bg-white p-6 flex flex-col fixed h-screen">
         <div className="mx-auto mb-10 w-full">
@@ -2135,36 +1796,14 @@ export default function OrgPage() {
           📊 <span>Polls</span>
         </div>
 
-        {orgType === "ON_CHAIN" ? (
-          <>
-            <div
-              onClick={() => setView("petitions")}
-              className={`flex items-center gap-3 mb-6 p-3 rounded cursor-pointer ${
-                view === "petitions" ? "bg-zinc-200 font-medium" : "hover:bg-zinc-100"
-              }`}
-            >
-              📜 <span>Petitions</span>
-            </div>
-
-            <div
-              onClick={() => setView("referendum")}
-              className={`flex items-center gap-3 mb-6 p-3 rounded cursor-pointer ${
-                view === "referendum" ? "bg-zinc-200 font-medium" : "hover:bg-zinc-100"
-              }`}
-            >
-              🗳️ <span>Referendum</span>
-            </div>
-          </>
-        ) : (
-          <div
-            onClick={() => setView("votes")}
-            className={`flex items-center gap-3 mb-6 p-3 rounded cursor-pointer ${
-              view === "votes" ? "bg-zinc-200 font-medium" : "hover:bg-zinc-100"
-            }`}
-          >
-            🗳️ <span>Votes</span>
-          </div>
-        )}
+        <div
+          onClick={() => setView("votes")}
+          className={`flex items-center gap-3 mb-6 p-3 rounded cursor-pointer ${
+            view === "votes" ? "bg-zinc-200 font-medium" : "hover:bg-zinc-100"
+          }`}
+        >
+          🗳️ <span>Votes</span>
+        </div>
         <div
           onClick={() => setView("settings")}
           className={`mt-auto flex items-center gap-3 p-3 rounded cursor-pointer ${
@@ -2179,29 +1818,24 @@ export default function OrgPage() {
         {!urlIsValid && (
           <p className="text-center text-red-600">Invalid organization link.</p>
         )}
-        {urlIsValid && offchainId && offchainLoad === "loading" && (
+        {urlIsValid && orgLoad === "loading" && (
           <p className="text-center text-gray-500">Loading organization…</p>
         )}
-        {urlIsValid && offchainId && offchainLoad === "missing" && (
-          <p className="text-center text-red-600">Community organization not found.</p>
+        {urlIsValid && orgLoad === "missing" && (
+          <p className="text-center text-red-600">Organization not found.</p>
         )}
 
         {canShowMain && (
         <>
-        {orgAddr && orgType === "ON_CHAIN" && (
-          <div className="mb-6">
-            <GovernanceWalletControl wallet={governance} />
-          </div>
-        )}
         {view !== "home" && (
           <>
             <h1 className="text-2xl font-bold mb-2 text-center w-full">{orgDisplayName || fallbackOrgName}</h1>
 
             <div className="mb-6 text-center text-sm text-gray-400">
               <p className="break-all">
-                {orgAddr ? "Organization" : "Community organization"}
+                {isGovernance ? "Governance organization" : "Community organization"}
               </p>
-              <p className="break-all">{mounted ? (userAddr ? "Signed in" : "Not signed in") : "Loading..."}</p>
+              <p className="break-all">{mounted ? (userId ? "Signed in" : "Not signed in") : "Loading..."}</p>
             </div>
           </>
         )}
@@ -2266,7 +1900,7 @@ export default function OrgPage() {
                 <h1 className="text-3xl font-bold text-zinc-900">{orgDisplayName || fallbackOrgName}</h1>
                 <p className="mt-2 text-zinc-700 whitespace-pre-wrap">{orgDescriptionText}</p>
                 <p className="mt-3 text-xs text-gray-500 break-all">
-                  {orgAddr ? "Organization" : "Community organization"}
+                  {isGovernance ? "Governance organization" : "Community organization"}
                 </p>
               </div>
             </div>
@@ -2701,85 +2335,72 @@ export default function OrgPage() {
 
         {view === "members" && (
           <>
-            {isAdmin && (
-              <>
-                <div className="mb-6 flex justify-center">
-                  <div className="flex w-2/3 items-center gap-2 relative">
-                    <input
-                      type="text"
-                      placeholder="Search members..."
-                      value={membersSearch}
-                      onChange={(e) => setMembersSearch(e.target.value)}
-                      className="flex-1 p-2 border border-zinc-200 rounded bg-white text-zinc-900 placeholder:text-zinc-500"
-                    />
-                  </div>
-                </div>
+            <div className="mb-6 flex justify-center">
+              <div className="flex w-2/3 items-center gap-2 relative">
+                <input
+                  type="text"
+                  placeholder="Search members..."
+                  value={membersSearch}
+                  onChange={(e) => setMembersSearch(e.target.value)}
+                  className="flex-1 p-2 border border-zinc-200 rounded bg-white text-zinc-900 placeholder:text-zinc-500"
+                />
+              </div>
+            </div>
 
-                <div className="mb-6 flex gap-4 justify-center">
+            {isAdmin && (
+              <div className="mb-6 flex gap-4 justify-center">
+                <button
+                  onClick={() => setMembersTab("all")}
+                  className={`px-4 py-2 ${
+                    membersTab === "all" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
+                  } rounded`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setMembersTab("pending")}
+                  className={`px-4 py-2 ${
+                    membersTab === "pending" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
+                  } rounded`}
+                >
+                  Pending
+                </button>
+                <button
+                  onClick={() => setMembersTab("manage")}
+                  className={`px-4 py-2 ${
+                    membersTab === "manage" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
+                  } rounded`}
+                >
+                  Manage
+                </button>
+                {canInviteMembers && (
                   <button
-                    onClick={() => setMembersTab("all")}
-                    className={`px-4 py-2 ${
-                      membersTab === "all" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
-                    } rounded`}
+                    type="button"
+                    onClick={() => {
+                      setShowInviteModal(true);
+                      setInvitee(null);
+                      setInviteError("");
+                    }}
+                    className="px-4 py-2 bg-zinc-200 text-zinc-900 rounded hover:bg-zinc-300"
                   >
-                    All
+                    Invite
                   </button>
-                  <button
-                    onClick={() => setMembersTab("pending")}
-                    className={`px-4 py-2 ${
-                      membersTab === "pending" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
-                    } rounded`}
-                  >
-                    Pending
-                  </button>
-                  <button
-                    onClick={() => setMembersTab("manage")}
-                    className={`px-4 py-2 ${
-                      membersTab === "manage" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
-                    } rounded`}
-                  >
-                    Manage
-                  </button>
-                  {canInviteMembers && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowInviteModal(true);
-                        setInviteQuery("");
-                        setInviteResults([]);
-                      }}
-                      className="px-4 py-2 bg-zinc-200 text-zinc-900 rounded hover:bg-zinc-300"
-                    >
-                      Invite
-                    </button>
-                  )}
-                </div>
-              </>
+                )}
+              </div>
             )}
 
-            {!isAdmin && (
-              <div className="mb-6 flex justify-center">
-                <div className="flex w-2/3 items-center gap-2 relative">
-                  <input
-                    type="text"
-                    placeholder="Search members..."
-                    value={membersSearch}
-                    onChange={(e) => setMembersSearch(e.target.value)}
-                    className="flex-1 p-2 border border-zinc-200 rounded bg-white text-zinc-900 placeholder:text-zinc-500"
-                  />
-                </div>
-              </div>
+            {membersNotice && (
+              <p className="mb-4 text-center text-sm text-zinc-700">{membersNotice}</p>
             )}
 
             {(!isAdmin || membersTab === "all") && (
               <div className="mb-6 p-4 border border-zinc-200 rounded bg-zinc-50 text-zinc-900">
                 <div className="mb-2 flex flex-wrap items-center gap-3">
                   <h2 className="text-xl">All Members</h2>
-                  {offchainId &&
-                    offchainOrg &&
-                    offchainOrg.membershipMode !== "Manual" &&
-                    userAddr &&
-                    !members.some((m) => m.toLowerCase() === userAddr.toLowerCase()) && (
+                  {orgRecord &&
+                    orgRecord.membershipMode !== "Manual" &&
+                    userId &&
+                    !isViewerMember && (
                       <button
                         type="button"
                         onClick={() => void handleJoinCommunityOrg()}
@@ -2789,188 +2410,71 @@ export default function OrgPage() {
                       </button>
                     )}
                 </div>
-                {orgAddr ? (
-                  filteredMembers.length === 0 ? (
-                    <p className="text-gray-400 text-sm">No members found for this search.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {filteredMembers.map((member) => {
-                        const mu = muteByMemberLower.get(member.toLowerCase()) ?? null;
-                        const mutedActive = mu !== null && mu > Date.now();
-                        return (
-                          <div
-                            key={member}
-                            className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-2 last:border-0"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm break-all text-gray-600">{member}</p>
-                              {mutedActive && (
-                                <p className="mt-0.5 text-xs text-amber-700">
-                                  Messageboard muted until {new Date(mu).toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                            {isAdmin &&
-                              userAddr?.toLowerCase() !== member.toLowerCase() && (
-                                <div className="flex shrink-0 gap-1">
-                                  {mutedActive ? (
-                                    <button
-                                      type="button"
-                                      disabled={muteSaving}
-                                      onClick={async () => {
-                                        if (!userAddr || !orgKey) return;
-                                        setMuteSaving(true);
-                                        try {
-                                          const signed = await signAction({
-                                            action: "messageboard.mute.clear",
-                                            resourceId: orgKey,
-                                            voterId: userAddr,
-                                            payload: { targetUser: member },
-                                          });
-                                          const res = await fetch("/api/messageboard-mutes", {
-                                            method: "DELETE",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({
-                                              orgKey,
-                                              targetUser: member,
-                                              adminAddress: userAddr,
-                                              ...signed,
-                                            }),
-                                          });
-                                          const data = await res.json().catch(() => ({}));
-                                          if (!res.ok) {
-                                            alert(
-                                              typeof data.error === "string"
-                                                ? data.error
-                                                : "Could not unmute"
-                                            );
-                                            return;
-                                          }
-                                          await loadMessageboardMuteState();
-                                        } catch {
-                                          alert("Unmute canceled or failed.");
-                                        } finally {
-                                          setMuteSaving(false);
-                                        }
-                                      }}
-                                      className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                                    >
-                                      Unmute
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setMuteMemberModal(member);
-                                        setMutePreset("24h");
-                                        setMuteCustomHours("24");
-                                      }}
-                                      className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 hover:bg-zinc-50"
-                                    >
-                                      Mute
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
-                ) : offchainOrg ? (
-                  filteredMembers.length === 0 ? (
-                    <p className="text-gray-400 text-sm">
-                      {membersSearch.trim()
-                        ? "No members found for this search."
-                        : "No members yet."}
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {filteredMembers.map((member) => {
-                        const mu = muteByMemberLower.get(member.toLowerCase()) ?? null;
-                        const mutedActive = mu !== null && mu > Date.now();
-                        return (
-                          <div
-                            key={member}
-                            className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-2 last:border-0"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm break-all text-gray-600">{member}</p>
-                              {mutedActive && (
-                                <p className="mt-0.5 text-xs text-amber-700">
-                                  Messageboard muted until {new Date(mu).toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                            {isAdmin &&
-                              userAddr?.toLowerCase() !== member.toLowerCase() && (
-                                <div className="flex shrink-0 gap-1">
-                                  {mutedActive ? (
-                                    <button
-                                      type="button"
-                                      disabled={muteSaving}
-                                      onClick={async () => {
-                                        if (!userAddr || !orgKey) return;
-                                        setMuteSaving(true);
-                                        try {
-                                          const signed = await signAction({
-                                            action: "messageboard.mute.clear",
-                                            resourceId: orgKey,
-                                            voterId: userAddr,
-                                            payload: { targetUser: member },
-                                          });
-                                          const res = await fetch("/api/messageboard-mutes", {
-                                            method: "DELETE",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({
-                                              orgKey,
-                                              targetUser: member,
-                                              adminAddress: userAddr,
-                                              ...signed,
-                                            }),
-                                          });
-                                          const data = await res.json().catch(() => ({}));
-                                          if (!res.ok) {
-                                            alert(
-                                              typeof data.error === "string"
-                                                ? data.error
-                                                : "Could not unmute"
-                                            );
-                                            return;
-                                          }
-                                          await loadMessageboardMuteState();
-                                        } catch {
-                                          alert("Unmute canceled or failed.");
-                                        } finally {
-                                          setMuteSaving(false);
-                                        }
-                                      }}
-                                      className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                                    >
-                                      Unmute
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setMuteMemberModal(member);
-                                        setMutePreset("24h");
-                                        setMuteCustomHours("24");
-                                      }}
-                                      className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 hover:bg-zinc-50"
-                                    >
-                                      Mute
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
-                ) : (
+                {!orgRecord ? (
                   <p className="text-gray-400 text-sm">Loading…</p>
+                ) : !isViewerMember ? (
+                  <p className="text-gray-400 text-sm">
+                    {orgRecord.memberCount ?? members.length} member{(orgRecord.memberCount ?? members.length) === 1 ? "" : "s"}.
+                    Join to see who is in this organization.
+                  </p>
+                ) : filteredMembers.length === 0 ? (
+                  <p className="text-gray-400 text-sm">
+                    {membersSearch.trim() ? "No members found for this search." : "No members yet."}
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredMembers.map((member) => {
+                      const mu = muteByMemberLower.get(member.toLowerCase()) ?? null;
+                      const mutedActive = mu !== null && mu > Date.now();
+                      return (
+                        <div
+                          key={member}
+                          className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-2 last:border-0"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-gray-700">
+                              {nameOf(member)}
+                              {userId && member.toLowerCase() === userId.toLowerCase() && (
+                                <span className="ml-1 text-xs text-zinc-400">(you)</span>
+                              )}
+                            </p>
+                            {mutedActive && (
+                              <p className="mt-0.5 text-xs text-amber-700">
+                                Messageboard muted until {new Date(mu).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                          {isAdmin &&
+                            userId?.toLowerCase() !== member.toLowerCase() && (
+                              <div className="flex shrink-0 gap-1">
+                                {mutedActive ? (
+                                  <button
+                                    type="button"
+                                    disabled={muteSaving}
+                                    onClick={() => void handleClearMute(member)}
+                                    className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+                                  >
+                                    Unmute
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMuteMemberModal(member);
+                                      setMutePreset("24h");
+                                      setMuteCustomHours("24");
+                                    }}
+                                    className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 hover:bg-zinc-50"
+                                  >
+                                    Mute
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             )}
@@ -2978,45 +2482,46 @@ export default function OrgPage() {
             {isAdmin && membersTab === "manage" && (
               <div className="mb-6 p-4 border border-zinc-200 rounded bg-zinc-50 text-zinc-900">
                 <h2 className="text-xl mb-3">Manage Members</h2>
-                {offchainId && (
-                  <div className="mb-4 rounded border border-zinc-200 bg-white p-3">
-                    <p className="text-sm font-medium text-zinc-900">Counter</p>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Appoint someone else to count. They can see who voted how only while verification is open.
-                      They cannot be the person who runs this organization.
-                    </p>
-                    {offchainOrg?.auditorAddress ? (
-                      <p className="mt-2 text-sm text-zinc-700 break-all">
-                        {shortAddress(offchainOrg.auditorAddress)}
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-sm text-zinc-500">None designated</p>
-                    )}
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <input
-                        type="text"
+                <div className="mb-4 rounded border border-zinc-200 bg-white p-3">
+                  <p className="text-sm font-medium text-zinc-900">Counter</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Appoint someone else to count. They can see who voted how only while verification is open.
+                    They cannot be the person who runs this organization.
+                  </p>
+                  {orgRecord?.auditorId ? (
+                    <p className="mt-2 text-sm text-zinc-700">{nameOf(orgRecord.auditorId)}</p>
+                  ) : (
+                    <p className="mt-2 text-sm text-zinc-500">None appointed</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-start gap-2">
+                    <div className="min-w-[14rem] flex-1">
+                      <PersonPicker
                         value={auditorInput}
-                        onChange={(e) => setAuditorInput(e.target.value)}
-                        placeholder="Counter's account"
-                        className="min-w-[12rem] flex-1 rounded border border-zinc-200 p-2 text-sm text-zinc-900"
+                        onChange={(id) => {
+                          setAuditorInput(id);
+                          setAuditorError("");
+                        }}
+                        placeholder="Search by name or email"
+                        exclude={userId ? [userId] : []}
                       />
-                      <button
-                        type="button"
-                        disabled={auditorBusy || !auditorInput.trim()}
-                        onClick={() => void handleSetAuditor()}
-                        className="rounded bg-zinc-800 px-3 py-2 text-sm text-white hover:bg-zinc-900 disabled:opacity-50"
-                      >
-                        Save
-                      </button>
                     </div>
+                    <button
+                      type="button"
+                      disabled={auditorBusy || !auditorInput}
+                      onClick={() => void handleSetAuditor()}
+                      className="rounded bg-zinc-800 px-3 py-2 text-sm text-white hover:bg-zinc-900 disabled:opacity-50"
+                    >
+                      {auditorBusy ? "Saving…" : "Appoint"}
+                    </button>
                   </div>
-                )}
+                  {auditorError && <p className="mt-2 text-sm text-red-600">{auditorError}</p>}
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={manageSearch}
                     onChange={(e) => setManageSearch(e.target.value)}
-                    placeholder="Search by account"
+                    placeholder="Search by name"
                     className="flex-1 p-2 border border-zinc-200 rounded bg-white text-zinc-900 placeholder:text-zinc-500"
                   />
                   <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
@@ -3027,9 +2532,7 @@ export default function OrgPage() {
               </div>
             )}
 
-            {(!isAdmin || membersTab === "pending") &&
-              membershipMode === 1 &&
-              (orgAddr || (offchainId && offchainOrg?.membershipMode === "Manual")) && (
+            {isAdmin && membersTab === "pending" && orgRecord?.membershipMode === "Manual" && (
               <div className="mt-8 border border-zinc-200 p-4 rounded">
                 <h2 className="text-xl mb-4">Pending Requests</h2>
 
@@ -3038,13 +2541,10 @@ export default function OrgPage() {
                 )}
 
                 {applications.map((app) => (
-                  <div
-                    key={app.source === "community" ? app.id : `onchain-${app.user}`}
-                    className="mb-4 border-b border-zinc-200 pb-2"
-                  >
-                    <p className="text-sm break-all">User: {app.user}</p>
+                  <div key={app.id} className="mb-4 border-b border-zinc-200 pb-2">
+                    <p className="text-sm">{nameOf(app.user)}</p>
                     <p className="text-gray-400 mb-2">{app.message || "No message"}</p>
-                    {app.source === "community" && app.answers && app.answers.length > 0 && (
+                    {app.answers && app.answers.length > 0 && (
                       <div className="mb-3 space-y-2 text-sm text-zinc-800">
                         {app.answers.map((ans) => (
                           <div key={ans.fieldId}>
@@ -3065,202 +2565,23 @@ export default function OrgPage() {
                         ))}
                       </div>
                     )}
-
-                    {app.source === "community" ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!userAddr) {
-                              alert("Sign in first");
-                              return;
-                            }
-                            try {
-                              const signed = await signAction({
-                                action: "community.applications.decision",
-                                resourceId: app.id,
-                                voterId: userAddr,
-                                payload: { decision: "approve" },
-                              });
-                              const res = await fetch(
-                                `/api/community-applications/${encodeURIComponent(app.id)}/decision`,
-                                {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
-                                    decision: "approve",
-                                    adminAddress: userAddr,
-                                    ...signed,
-                                  }),
-                                }
-                              );
-                              const data = await res.json().catch(() => ({}));
-                              if (!res.ok) {
-                                alert(typeof data.error === "string" ? data.error : "Approval failed");
-                                return;
-                              }
-                              if (data.status === "approved") {
-                                alert("Application approved");
-                                setApplications((prev) => prev.filter((a) => a.source !== "community" || a.id !== app.id));
-                                const approvedMember = safeAddress(app.user);
-                                if (approvedMember) {
-                                  setMembers((prev) =>
-                                    prev.includes(approvedMember) ? prev : [...prev, approvedMember]
-                                  );
-                                }
-                              }
-                            } catch (err) {
-                              console.error(err);
-                              alert("Approval canceled or failed");
-                            }
-                          }}
-                          className="px-4 py-1 rounded mr-2 bg-green-600 text-white hover:bg-green-500"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!userAddr) {
-                              alert("Sign in first");
-                              return;
-                            }
-                            try {
-                              const signed = await signAction({
-                                action: "community.applications.decision",
-                                resourceId: app.id,
-                                voterId: userAddr,
-                                payload: { decision: "reject" },
-                              });
-                              const res = await fetch(
-                                `/api/community-applications/${encodeURIComponent(app.id)}/decision`,
-                                {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
-                                    decision: "reject",
-                                    adminAddress: userAddr,
-                                    ...signed,
-                                  }),
-                                }
-                              );
-                              const data = await res.json().catch(() => ({}));
-                              if (!res.ok) {
-                                alert(typeof data.error === "string" ? data.error : "Reject failed");
-                                return;
-                              }
-                              if (data.status === "rejected") {
-                                setApplications((prev) => prev.filter((a) => a.source !== "community" || a.id !== app.id));
-                              }
-                            } catch (err) {
-                              console.error(err);
-                              alert("Reject failed");
-                            }
-                          }}
-                          className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-500"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              const hash = await governance.writeContract({
-                                address: safeAddress(orgAddress) as `0x${string}`,
-                                abi: orgAbi,
-                                functionName: "approveMember",
-                                args: [app.user],
-                              });
-
-                              if (!publicClient) {
-                                alert("The action was sent, but this page could not confirm it.");
-                                return;
-                              }
-
-                              const receipt = await publicClient.waitForTransactionReceipt({ hash });
-                              const txSucceeded = receipt?.status === "success";
-
-                              if (!txSucceeded) {
-                                alert("Approval failed");
-                                return;
-                              }
-
-                              const applicant = safeAddress(app.user);
-                              if (!applicant) {
-                                alert("Invalid applicant address");
-                                return;
-                              }
-
-                              const isMemberAfterTx = await publicClient.readContract({
-                                address: safeAddress(orgAddress) as `0x${string}`,
-                                abi: [
-                                  {
-                                    name: "isMember",
-                                    type: "function",
-                                    stateMutability: "view",
-                                    inputs: [{ name: "user", type: "address" }],
-                                    outputs: [{ type: "bool" }],
-                                  },
-                                ],
-                                functionName: "isMember",
-                                args: [applicant],
-                              });
-
-                              if (!Boolean(isMemberAfterTx)) {
-                                alert("Approval failed");
-                                return;
-                              }
-
-                              const res = await fetch("http://localhost:3001/approve", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  user: app.user,
-                                  org: orgAddress,
-                                }),
-                              });
-
-                              const data = await res.json();
-
-                              if (data.status === "approved") {
-                                alert("Application approved");
-                                setApplications((prev) =>
-                                  prev.filter((a) => a.source !== "onchain" || a.user !== app.user)
-                                );
-                                const approvedMember = safeAddress(app.user);
-                                if (approvedMember) {
-                                  setMembers((prev) =>
-                                    prev.includes(approvedMember) ? prev : [...prev, approvedMember]
-                                  );
-                                }
-                              } else {
-                                alert("Backend update failed");
-                              }
-                            } catch (err) {
-                              console.error(err);
-                              alert(governanceWalletMessage(err));
-                            }
-                          }}
-                          className="px-4 py-1 rounded mr-2 bg-green-600 text-white hover:bg-green-500"
-                        >
-                          Approve
-                        </button>
-
-                        <button
-                          type="button"
-                          className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-500 opacity-60 cursor-not-allowed"
-                          disabled
-                          title="Reject is not available yet"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => void handleApplicationDecision(app, "approve")}
+                      className="px-4 py-1 rounded mr-2 bg-green-600 text-white hover:bg-green-500"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleApplicationDecision(app, "reject")}
+                      className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-500"
+                    >
+                      Reject
+                    </button>
                   </div>
                 ))}
+                {applicationError && <p className="mt-2 text-sm text-red-600">{applicationError}</p>}
               </div>
             )}
           </>
@@ -3453,7 +2774,7 @@ export default function OrgPage() {
                   return (
                     <div key={`post-${entry.item.id}`} className="border border-zinc-200 rounded-lg bg-zinc-50 p-3">
                       <p className="text-xs text-gray-400 break-all">
-                        Messageboard • {entry.item.user} • {new Date(entry.item.timestamp).toLocaleString()}
+                        Messageboard • {nameOf(entry.item.user)} • {new Date(entry.item.timestamp).toLocaleString()}
                       </p>
                       <p className="mt-2 text-sm text-zinc-800 whitespace-pre-wrap">{entry.item.text}</p>
                     </div>
@@ -3575,8 +2896,8 @@ export default function OrgPage() {
                       onClick={async () => {
                         const text = postText.trim();
                         if (!text) return;
-                        if (!userAddr || !orgKey) {
-                          alert("Missing address");
+                        if (!userId || !orgKey) {
+                          alert("Sign in first");
                           return;
                         }
 
@@ -3584,11 +2905,8 @@ export default function OrgPage() {
                           const res = await fetch("/api/messageboard-proxy", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              user: userAddr,
-                              org: orgKey,
-                              text,
-                            }),
+                            credentials: "include",
+                            body: JSON.stringify({ org: orgKey, text }),
                           });
                           const data = await res.json();
 
@@ -3626,8 +2944,8 @@ export default function OrgPage() {
 
                   {sortedFilteredPosts.map((post) => (
                     <div key={post.id} className="border border-zinc-200 rounded-lg bg-zinc-50 p-3">
-                      <p className="text-xs text-gray-400 break-all">
-                        {post.user} • {new Date(post.timestamp).toLocaleString()}
+                      <p className="text-xs text-gray-400">
+                        {nameOf(post.user)} • {new Date(post.timestamp).toLocaleString()}
                       </p>
                       <p className="mt-2 text-sm text-zinc-800 whitespace-pre-wrap">{post.text}</p>
                       <div className="mt-3 flex gap-2">
@@ -3698,7 +3016,7 @@ export default function OrgPage() {
               </div>
             )}
 
-            {socialTab === "votes" && orgType === "OFF_CHAIN" && renderCommunityVotesMain(sortedFilteredVotes)}
+            {socialTab === "votes" && renderCommunityVotesMain(sortedFilteredVotes)}
           </>
         )}
 
@@ -4003,10 +3321,9 @@ export default function OrgPage() {
           <div className="space-y-4">
             <OrgSettingsPanel
               orgId={orgKey}
-              community={orgType === "OFF_CHAIN"}
+              governance={isGovernance}
               isAdmin={isAdmin}
-              userAddr={userAddr}
-              signMessageAsync={signMessageAsync}
+              signedIn={Boolean(userId)}
               onSettingsChange={setOrgSettings}
             />
             {isAdmin && (
@@ -4038,15 +3355,7 @@ export default function OrgPage() {
                 </div>
               </div>
             )}
-            <AuditorVisibilityCard
-              isAdmin={isAdmin}
-              orgAddress={orgAddr}
-              offchainId={offchainId ?? undefined}
-              offchainOrg={offchainOrg}
-              userAddress={userAddr ?? undefined}
-              signMessageAsync={signMessageAsync}
-              onCommunityOrg={setOffchainOrg}
-            />
+            <AuditorVisibilityCard isAdmin={isAdmin} org={orgRecord} onCommunityOrg={setOrgRecord} />
             <div className="border border-zinc-200 p-6 rounded bg-zinc-50">
               <h3 className="text-lg mb-2">Voting eligibility policy</h3>
               <p className="text-sm text-zinc-700">
@@ -4060,163 +3369,7 @@ export default function OrgPage() {
           </div>
         )}
 
-        {orgType === "ON_CHAIN" && view === "petitions" && (
-          <>
-            <div className="mb-6 flex justify-center">
-              <div className="flex w-2/3 items-center gap-2 relative">
-                <input
-                  type="text"
-                  placeholder="Search petitions..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="flex-1 p-2 border border-zinc-200 rounded bg-white text-zinc-900 placeholder:text-zinc-500"
-                />
-
-                <div className="relative">
-                  <button
-                    onClick={() => setShowSort(!showSort)}
-                    className="px-3 py-2 bg-zinc-200 text-zinc-900 rounded hover:bg-zinc-300"
-                  >
-                    Sort
-                  </button>
-
-                  {showSort && (
-                    <div className="absolute right-0 mt-2 bg-white border border-zinc-200 rounded shadow-lg z-10">
-                      <button
-                        onClick={() => {
-                          setSortOrder("newest");
-                          setShowSort(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-zinc-100 text-zinc-900"
-                      >
-                        Newest
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSortOrder("oldest");
-                          setShowSort(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-zinc-100 text-zinc-900"
-                      >
-                        Oldest
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSortOrder("popular");
-                          setShowSort(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-zinc-100 text-zinc-900"
-                      >
-                        Most Popular
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-6 flex gap-4 justify-center">
-              <button
-                onClick={() => setPetitionTab("all")}
-                className={`px-4 py-2 ${
-                  petitionTab === "all" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
-                } rounded`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setPetitionTab("yours")}
-                className={`px-4 py-2 ${
-                  petitionTab === "yours" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
-                } rounded`}
-              >
-                Yours
-              </button>
-              {orgSettings?.citizenInitiativesEnabled === true && (
-              <button
-                onClick={() => setPetitionTab("create")}
-                className={`px-4 py-2 ${
-                  petitionTab === "create" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
-                } rounded`}
-              >
-                Create
-              </button>
-              )}
-            </div>
-
-            {petitionTab === "create" && orgAddr && orgSettings?.citizenInitiativesEnabled === true && (
-              <div className="mb-8 p-4 border border-zinc-200 rounded bg-zinc-50 text-zinc-900">
-                <h2 className="font-semibold mb-4 text-zinc-900">Create petition for this organization</h2>
-                <input
-                  type="text"
-                  placeholder="Petition title"
-                  value={petitionTitle}
-                  onChange={(e) => setPetitionTitle(e.target.value)}
-                  className="w-full mb-2 p-2 border border-zinc-200 rounded bg-white text-zinc-900 placeholder:text-zinc-500"
-                />
-                <textarea
-                  placeholder="Petition description"
-                  value={petitionDescription}
-                  onChange={(e) => setPetitionDescription(e.target.value)}
-                  className="w-full mb-2 p-2 border border-zinc-200 rounded bg-white text-zinc-900 placeholder:text-zinc-500 h-24"
-                />
-                <button
-                  type="button"
-                  onClick={handleCreatePetition}
-                  disabled={!petitionTitle.trim() || !petitionDescription.trim()}
-                  className="mt-2 px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400"
-                >
-                  Create petition
-                </button>
-              </div>
-            )}
-
-            {petitionTab === "all" &&
-              orgAddr &&
-              filteredOrgPetitions.map((e) => (
-                <PetitionCard
-                  key={`${orgAddr}-${e.petitionId}`}
-                  id={BigInt(e.petitionId)}
-                  petitionCreator={e.creator}
-                  orgSharePathSegment={shareOrgSlug}
-                  onPinToOrgHome={pinContentToOrgHome}
-                />
-              ))}
-
-            {petitionTab === "yours" &&
-              orgAddr &&
-              yourOrgPetitions.map((e) => (
-                <PetitionCard
-                  key={`${orgAddr}-${e.petitionId}`}
-                  id={BigInt(e.petitionId)}
-                  petitionCreator={e.creator}
-                  orgSharePathSegment={shareOrgSlug}
-                  onPinToOrgHome={pinContentToOrgHome}
-                />
-              ))}
-
-            {petitionTab === "create" && !orgAddr && orgSettings?.citizenInitiativesEnabled === true && (
-              <p className="text-gray-500 text-sm">Invalid organization address.</p>
-            )}
-          </>
-        )}
-
-        {orgType === "ON_CHAIN" && view === "referendum" && (
-          <div className="border border-zinc-200 p-6 rounded space-y-3">
-            <h2 className="text-xl mb-1">Referendum</h2>
-            <p className="text-sm text-zinc-600">
-              Active referendums are listed on each petition after launch. Open <strong>Petitions</strong>, find a
-              petition with an active referendum, and use <strong>Share</strong> next to &quot;View Referendum&quot; to
-              copy a link, send by email or SMS, or (if you are an org admin) pin it to the org homepage.
-            </p>
-            <p className="text-gray-400 text-sm">
-              A dedicated referendum feed for this org will appear here in a future update.
-            </p>
-          </div>
-        )}
-
-        {orgType === "OFF_CHAIN" &&
-          view === "votes" &&
+        {view === "votes" &&
           renderCommunityVotesMain(filteredVotesForVotesTab, {
             showSearch: true,
             searchValue: voteSearch,
@@ -4228,8 +3381,8 @@ export default function OrgPage() {
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
             onClick={() => {
               setShowInviteModal(false);
-              setInviteQuery("");
-              setInviteResults([]);
+              setInvitee(null);
+              setInviteError("");
             }}
           >
             <div
@@ -4241,8 +3394,8 @@ export default function OrgPage() {
                 aria-label="Close invite"
                 onClick={() => {
                   setShowInviteModal(false);
-                  setInviteQuery("");
-                  setInviteResults([]);
+                  setInvitee(null);
+                  setInviteError("");
                 }}
                 className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
               >
@@ -4256,81 +3409,40 @@ export default function OrgPage() {
                 membership.
               </p>
               <label className="mt-4 block text-sm font-medium text-zinc-800">
-                Search people
-                <input
-                  type="text"
-                  value={inviteQuery}
-                  onChange={(e) => setInviteQuery(e.target.value)}
-                  placeholder="Name or account"
-                  className="mt-1 w-full rounded border border-zinc-200 p-2 text-zinc-900 placeholder:text-zinc-500"
-                />
+                Who
+                <div className="mt-1">
+                  <PersonPicker
+                    value={invitee}
+                    onChange={(id) => {
+                      setInvitee(id);
+                      setInviteError("");
+                    }}
+                    placeholder="Search by name or email"
+                    exclude={[...members, ...(userId ? [userId] : [])]}
+                  />
+                </div>
               </label>
-              <div className="mt-2 max-h-48 overflow-auto rounded border border-zinc-100 bg-zinc-50">
-                {inviteSearchLoading ? (
-                  <p className="p-3 text-sm text-zinc-500">Searching…</p>
-                ) : inviteResults.length === 0 ? (
-                  <p className="p-3 text-sm text-zinc-500">
-                    {inviteQuery.trim()
-                      ? "No matching people."
-                      : "Type a name or account."}
-                  </p>
-                ) : (
-                  <ul className="divide-y divide-zinc-200">
-                    {inviteResults.map((addr) => (
-                      <li key={addr} className="flex items-center justify-between gap-2 p-2">
-                        <span className="min-w-0 flex-1 break-all text-sm text-zinc-800">{addr}</span>
-                        <button
-                          type="button"
-                          disabled={inviteSending || !userAddr}
-                          onClick={async () => {
-                            if (!userAddr) return;
-                            setInviteSending(true);
-                            try {
-                              const orgTitle = orgDisplayName || fallbackOrgName;
-                              const signed = await signAction({
-                                action: "member-invites.create",
-                                resourceId: shareOrgSlug,
-                                voterId: userAddr,
-                                payload: { orgTitle, invitee: addr },
-                              });
-                              const res = await fetch("/api/member-invites", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  orgSlug: shareOrgSlug,
-                                  orgTitle,
-                                  invitee: addr,
-                                  inviter: userAddr,
-                                  ...signed,
-                                }),
-                              });
-                              const data = await res.json().catch(() => ({}));
-                              if (!res.ok) {
-                                alert(
-                                  typeof data.error === "string"
-                                    ? data.error
-                                    : "Could not send invite"
-                                );
-                                return;
-                              }
-                              alert("Invitation sent. They can open it from the bell icon.");
-                              setShowInviteModal(false);
-                              setInviteQuery("");
-                              setInviteResults([]);
-                            } catch {
-                              alert("Invite canceled or failed.");
-                            } finally {
-                              setInviteSending(false);
-                            }
-                          }}
-                          className="shrink-0 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Send
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+              {inviteError && <p className="mt-2 text-sm text-red-600">{inviteError}</p>}
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setInvitee(null);
+                    setInviteError("");
+                  }}
+                  className="rounded bg-zinc-200 px-4 py-2 text-zinc-900 hover:bg-zinc-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={inviteSending || !userId || !invitee}
+                  onClick={() => void handleSendInvite()}
+                  className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {inviteSending ? "Sending…" : "Send invite"}
+                </button>
               </div>
             </div>
           </div>
@@ -4346,14 +3458,14 @@ export default function OrgPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 className="text-lg font-semibold text-zinc-900">{auditorReveal.title}</h2>
-              <p className="mt-1 text-xs text-zinc-500">Auditor reveal — logged</p>
+              <p className="mt-1 text-xs text-zinc-500">Counter review — this access is logged</p>
               <ul className="mt-4 divide-y divide-zinc-200 border border-zinc-200 rounded">
                 {auditorReveal.ballots.length === 0 ? (
                   <li className="p-3 text-sm text-zinc-500">No ballots</li>
                 ) : (
                   auditorReveal.ballots.map((b, i) => (
                     <li key={`${b.voterId}-${i}`} className="p-3 text-sm">
-                      <p className="text-zinc-500">{shortAddress(b.voterId)}</p>
+                      <p className="text-zinc-500">{nameOf(b.voterId)}</p>
                       <p className="mt-1 text-zinc-900">
                         {b.choices
                           .map((c) => auditorReveal.options[c] ?? `Option ${c}`)
@@ -4396,7 +3508,7 @@ export default function OrgPage() {
                 This person remains a full member (they cannot be removed from the group here). They only cannot post
                 or react on the messageboard until the mute ends. Voting, events, and other activity are unchanged.
               </p>
-              <p className="mt-2 break-all text-xs text-zinc-500">{muteMemberModal}</p>
+              <p className="mt-2 text-xs text-zinc-500">{nameOf(muteMemberModal)}</p>
               <p className="mt-3 text-sm font-medium text-zinc-800">Duration</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(
@@ -4454,28 +3566,17 @@ export default function OrgPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={muteSaving || !userAddr || !orgKey}
+                  disabled={muteSaving || !userId || !orgKey}
                   onClick={async () => {
-                    if (!userAddr || !orgKey || !muteMemberModal) return;
+                    if (!userId || !orgKey || !muteMemberModal) return;
                     setMuteSaving(true);
                     try {
                       const mutedUntil = Date.now() + computeMuteDurationMs(mutePreset, muteCustomHours);
-                      const signed = await signAction({
-                        action: "messageboard.mute.set",
-                        resourceId: orgKey,
-                        voterId: userAddr,
-                        payload: { targetUser: muteMemberModal, mutedUntil },
-                      });
                       const res = await fetch("/api/messageboard-mutes", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          orgKey,
-                          targetUser: muteMemberModal,
-                          mutedUntil,
-                          adminAddress: userAddr,
-                          ...signed,
-                        }),
+                        credentials: "include",
+                        body: JSON.stringify({ orgKey, targetUser: muteMemberModal, mutedUntil }),
                       });
                       const data = await res.json().catch(() => ({}));
                       if (!res.ok) {
@@ -4485,7 +3586,7 @@ export default function OrgPage() {
                       setMuteMemberModal(null);
                       await loadMessageboardMuteState();
                     } catch {
-                      alert("Mute canceled or failed.");
+                      alert("Could not apply mute. Check your connection and try again.");
                     } finally {
                       setMuteSaving(false);
                     }
@@ -4505,8 +3606,8 @@ export default function OrgPage() {
           onClose={() => setPerspectivesVoteId(null)}
           showAcknowledge={Boolean(
             perspectivesVoteId &&
-              userAddr &&
-              orgSettings?.educationBeforeVote !== false &&
+              userId &&
+              (isGovernance || orgSettings?.educationBeforeVote !== false) &&
               !communityEduAck[perspectivesVoteId]
           )}
           acknowledgeLabel="I have read these"
@@ -4519,6 +3620,5 @@ export default function OrgPage() {
         )}
       </div>
     </div>
-    </OrganizationAddressProvider>
   );
 }

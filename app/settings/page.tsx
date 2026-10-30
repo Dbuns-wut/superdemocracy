@@ -3,53 +3,44 @@ export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { useAccount } from "wagmi"
 import { AppSidebar } from "@/components/AppSidebar"
 import { PasswordInput } from "@/components/PasswordInput"
+import { useSession } from "@/lib/auth/use-session"
 
 export default function SettingsPage() {
-  const { address, isConnected } = useAccount()
+  const router = useRouter()
+  const { account, loading, signOut } = useSession()
+  const signedIn = Boolean(account)
   const [name, setName] = useState("")
-  const [signedIn, setSignedIn] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [passwordError, setPasswordError] = useState("")
   const [passwordUpdated, setPasswordUpdated] = useState(false)
   const [passwordBusy, setPasswordBusy] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
 
   useEffect(() => {
-    if (!address) {
+    if (!account) {
       setName("")
       return
     }
     let cancelled = false
-    void fetch(`/api/me?address=${encodeURIComponent(address)}`)
+    void fetch("/api/me", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return
-        setName(typeof data?.profile?.displayName === "string" ? data.profile.displayName : "")
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [address])
-
-  useEffect(() => {
-    let cancelled = false
-    void fetch("/api/auth/session", { credentials: "include" })
-      .then((res) => {
-        if (!cancelled) setSignedIn(res.ok)
+        setName(typeof data?.profile?.displayName === "string" ? data.profile.displayName : account.name)
       })
       .catch(() => {
-        if (!cancelled) setSignedIn(false)
+        if (!cancelled) setName(account.name)
       })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [account])
 
   async function updatePassword() {
     setPasswordError("")
@@ -90,6 +81,16 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleSignOut() {
+    setSigningOut(true)
+    try {
+      await signOut()
+      router.push("/")
+    } finally {
+      setSigningOut(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-white text-zinc-900">
       <AppSidebar active="settings" />
@@ -100,18 +101,30 @@ export default function SettingsPage() {
 
           <section className="mt-8">
             <h2 className="text-sm font-medium text-zinc-700">Profile</h2>
-            {isConnected && address ? (
+            {loading ? (
+              <p className="mt-1 text-sm text-zinc-500">Loading…</p>
+            ) : signedIn ? (
               <p className="mt-1 text-sm text-zinc-500">{name || "Add your name so people know who you are."}</p>
             ) : (
               <p className="mt-1 text-sm text-zinc-500">You are not signed in.</p>
             )}
-            <div className="mt-3">
+            <div className="mt-3 flex items-center gap-2">
               <Link
-                href={isConnected ? "/me" : "/"}
+                href={signedIn ? "/me" : "/"}
                 className="inline-block rounded border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-50"
               >
-                {isConnected ? "My ID" : "Sign in"}
+                {signedIn ? "My ID" : "Sign in"}
               </Link>
+              {signedIn && (
+                <button
+                  type="button"
+                  disabled={signingOut}
+                  onClick={() => void handleSignOut()}
+                  className="inline-block rounded border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  {signingOut ? "Signing out…" : "Sign out"}
+                </button>
+              )}
             </div>
           </section>
 

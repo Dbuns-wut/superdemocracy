@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "crypto"
 import { promises as fs } from "fs"
 import path from "path"
 import { ensureMigrated, hasDatabase, withDbClient } from "@/lib/db"
+import type { PublicAccount } from "./account-types"
 import { hashPassword, verifyPassword } from "./password"
 
 const DATA_DIR = path.join(process.cwd(), "data")
@@ -18,12 +19,7 @@ export type Account = {
   createdAt: number
 }
 
-/** What other members may see about an account. */
-export type PublicAccount = {
-  id: string
-  name: string
-  email: string
-}
+export type { PublicAccount }
 
 type AccountBook = { byEmail: Record<string, Account> }
 type SessionRow = { accountId: string; email: string; expiresAt: number }

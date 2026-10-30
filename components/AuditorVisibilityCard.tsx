@@ -1,163 +1,79 @@
 "use client"
 
 import { useState } from "react"
-import { isAddress } from "viem"
-import { useReadContract } from "wagmi"
-import { useGovernanceWallet } from "@/hooks/useGovernanceWallet"
-import { governanceWalletMessage } from "@/lib/governance-wallet"
-import { signOffchainAction } from "@/lib/sign-offchain-action"
+import { SettingWarningModal, type SettingWarning } from "@/components/SettingWarningModal"
 import type { CommunityOrg } from "@/lib/community-orgs/types"
-
-const ballotPolicyAbi = [
-  {
-    type: "function",
-    name: "auditorVisibleBallots",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "bool" }],
-  },
-  {
-    type: "function",
-    name: "ballotAuditor",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "address" }],
-  },
-  {
-    type: "function",
-    name: "setAuditorVisibleBallots",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "enabled", type: "bool" }],
-    outputs: [],
-  },
-  {
-    type: "function",
-    name: "setBallotAuditor",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "auditor", type: "address" }],
-    outputs: [],
-  },
-] as const
 
 const choiceButton =
   "rounded px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
 
+const SECRET_COUNT_WARNING: SettingWarning = {
+  title: "Switch to a secret count?",
+  affects:
+    "Votes started after this change will not keep a link between a person and their choice. The appointed counter will not be able to check a disputed result person by person.",
+  pros: [
+    "Each person's choice is untraceable, even to the counter.",
+    "Nothing to leak about how an individual voted.",
+  ],
+  cons: [
+    "A disputed count cannot be checked person by person.",
+    "A member cannot later be shown what was recorded for them beyond that they took part.",
+  ],
+  confirmLabel: "Use a secret count",
+}
+
+const AUDITOR_VISIBLE_WARNING: SettingWarning = {
+  title: "Switch to auditor-visible ballots?",
+  affects:
+    "Votes started after this change will keep a link between each person and their choice. Only the appointed counter can open it, and only during a verification window.",
+  pros: [
+    "A disputed result can be checked person by person, like a bank tracing a payment.",
+    "Each member can review their own recorded choice.",
+  ],
+  cons: [
+    "How someone voted exists as a record. Leaking or selling it must be punished by the organization.",
+    "The counter must be someone members trust, and not the admin.",
+  ],
+  confirmLabel: "Use auditor-visible ballots",
+}
+
 type Props = {
   isAdmin: boolean
-  orgAddress?: `0x${string}`
-  offchainId?: string
-  offchainOrg?: CommunityOrg | null
-  userAddress?: string
-  signMessageAsync: (args: { message: string }) => Promise<`0x${string}`>
+  org: CommunityOrg | null
   onCommunityOrg: (org: CommunityOrg) => void
 }
 
-export function AuditorVisibilityCard({
-  isAdmin,
-  orgAddress,
-  offchainId,
-  offchainOrg,
-  userAddress,
-  signMessageAsync,
-  onCommunityOrg,
-}: Props) {
-  const isChain = Boolean(orgAddress)
-  const { data: chainVisible, refetch: refetchVisible } = useReadContract({
-    address: orgAddress,
-    abi: ballotPolicyAbi,
-    functionName: "auditorVisibleBallots",
-    query: { enabled: Boolean(orgAddress) },
-  })
-  const { data: chainCounter, refetch: refetchCounter } = useReadContract({
-    address: orgAddress,
-    abi: ballotPolicyAbi,
-    functionName: "ballotAuditor",
-    query: { enabled: Boolean(orgAddress) },
-  })
-  const governance = useGovernanceWallet()
+export function AuditorVisibilityCard({ isAdmin, org, onCommunityOrg }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
-  const [counterInput, setCounterInput] = useState("")
+  const [pending, setPending] = useState<{ enabled: boolean; warning: SettingWarning } | null>(null)
 
-  if (!isAdmin) return null
+  if (!isAdmin || !org) return null
 
-  const visible = isChain ? chainVisible !== false : offchainOrg?.auditorVisibleBallots !== false
-  const counter =
-    isChain && chainCounter && chainCounter !== "0x0000000000000000000000000000000000000000"
-      ? chainCounter
-      : offchainOrg?.auditorAddress
+  const visible = org.auditorVisibleBallots !== false
 
   async function setVisible(enabled: boolean) {
+    if (!org) return
     setError("")
     setBusy(true)
     try {
-      if (isChain && orgAddress) {
-        await governance.writeAndConfirm({
-          address: orgAddress,
-          abi: ballotPolicyAbi,
-          functionName: "setAuditorVisibleBallots",
-          args: [enabled],
-        })
-        await refetchVisible()
-        return
-      }
-      if (!offchainId || !userAddress) {
-        setError("Connect the admin wallet.")
-        return
-      }
-      const signed = await signOffchainAction({
-        action: "community.orgs.setAuditorVisibility",
-        resourceId: offchainId,
-        voterId: userAddress,
-        payload: { auditorVisibleBallots: enabled },
-        signMessageAsync,
+      const res = await fetch(`/api/community-orgs/${encodeURIComponent(org.id)}/auditor-visibility`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ auditorVisibleBallots: enabled }),
       })
-      const res = await fetch(
-        `/api/community-orgs/${encodeURIComponent(offchainId)}/auditor-visibility`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            auditorVisibleBallots: enabled,
-            voterId: userAddress,
-            ...signed,
-          }),
-        }
-      )
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         setError(typeof data.error === "string" ? data.error : "Could not save this setting.")
         return
       }
       if (data.org) onCommunityOrg(data.org as CommunityOrg)
-    } catch (err) {
-      setError(isChain ? governanceWalletMessage(err) : "Could not save this setting.")
+    } catch {
+      setError("Could not save this setting.")
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function saveCounter() {
-    if (!isChain || !orgAddress) return
-    setError("")
-    if (!isAddress(counterInput.trim())) {
-      setError("Enter the counter's wallet address.")
-      return
-    }
-    setBusy(true)
-    try {
-      await governance.writeAndConfirm({
-        address: orgAddress,
-        abi: ballotPolicyAbi,
-        functionName: "setBallotAuditor",
-        args: [counterInput.trim() as `0x${string}`],
-      })
-      setCounterInput("")
-      await refetchCounter()
-    } catch (err) {
-      setError(governanceWalletMessage(err))
-    } finally {
-      setBusy(false)
+      setPending(null)
     }
   }
 
@@ -187,7 +103,7 @@ export function AuditorVisibilityCard({
         <button
           type="button"
           disabled={busy || visible}
-          onClick={() => void setVisible(true)}
+          onClick={() => setPending({ enabled: true, warning: AUDITOR_VISIBLE_WARNING })}
           className={`${choiceButton} ${
             visible ? "bg-zinc-800 text-white" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
           }`}
@@ -197,7 +113,7 @@ export function AuditorVisibilityCard({
         <button
           type="button"
           disabled={busy || !visible}
-          onClick={() => void setVisible(false)}
+          onClick={() => setPending({ enabled: false, warning: SECRET_COUNT_WARNING })}
           className={`${choiceButton} ${
             !visible ? "bg-zinc-800 text-white" : "bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
           }`}
@@ -210,35 +126,17 @@ export function AuditorVisibilityCard({
         with. Appoint the counter the same way this organization would appoint someone to count
         paper ballots, and do that before launching a vote.
       </p>
-      {!isChain && (
-        <p className="mt-2 text-sm text-zinc-600">Appoint that counter under Members.</p>
-      )}
-      {isChain && (
-        <div className="mt-4">
-          <p className="text-sm font-medium text-zinc-900">Appointed counter</p>
-          <p className="mt-1 text-sm text-zinc-600 break-all">
-            {counter ? counter : "None appointed"}
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <input
-              type="text"
-              value={counterInput}
-              onChange={(e) => setCounterInput(e.target.value)}
-              placeholder="Counter address"
-              className="w-72 max-w-full rounded border border-zinc-200 bg-white p-2 text-sm text-zinc-900"
-            />
-            <button
-              type="button"
-              disabled={busy || !counterInput.trim()}
-              onClick={() => void saveCounter()}
-              className="rounded bg-zinc-800 px-3 py-2 text-sm text-white hover:bg-zinc-900 disabled:opacity-50"
-            >
-              Save counter
-            </button>
-          </div>
-        </div>
-      )}
+      <p className="mt-2 text-sm text-zinc-600">Appoint that counter under Members.</p>
       {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+
+      <SettingWarningModal
+        warning={pending?.warning ?? null}
+        busy={busy}
+        onCancel={() => setPending(null)}
+        onConfirm={() => {
+          if (pending) void setVisible(pending.enabled)
+        }}
+      />
     </div>
   )
 }

@@ -35,7 +35,7 @@ export function encryptBallotChoices(choices: number[]): EncryptedBallotPayload 
   }
 }
 
-/** Packed `iv || authTag || ciphertext` for on-chain storage. The choice is not plaintext. */
+/** Packed `iv || authTag || ciphertext` for compact storage. The choice is not plaintext. */
 export function sealBallotChoices(choices: number[]): `0x${string}` {
   const payload = encryptBallotChoices(choices)
   const packed = Buffer.concat([

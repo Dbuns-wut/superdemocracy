@@ -2,13 +2,7 @@
 
 import Link from "next/link"
 
-type AppSidebarActive =
-  | "me"
-  | "orgs"
-  | "petitions"
-  | "messages"
-  | "referendums"
-  | "settings"
+type AppSidebarActive = "me" | "orgs" | "messages" | "settings"
 
 export function AppSidebar({
   active,
@@ -44,16 +38,8 @@ export function AppSidebar({
         👥 <span>Orgs</span>
       </Link>
 
-      <Link href="/petitions" className={linkClass("petitions")}>
-        📜 <span>Petitions</span>
-      </Link>
-
       <Link href="/messages" className={linkClass("messages")}>
         💬 <span>Messages</span>
-      </Link>
-
-      <Link href="/referendums" className={linkClass("referendums")}>
-        🗳️ <span>Referendums</span>
       </Link>
 
       <Link href="/settings" className={`${linkClass("settings")} mt-auto`}>

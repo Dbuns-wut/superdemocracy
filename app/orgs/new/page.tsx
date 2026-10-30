@@ -3,170 +3,58 @@ export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 
 import { useState } from "react"
-import { useAccount, useSignMessage } from "wagmi"
-import { usePublicClient } from "wagmi"
-import { abi as registryAbi } from "@/abis/GroupRegistry.json"
 import { useRouter } from "next/navigation"
-import { decodeEventLog } from "viem"
-import { safeAddress } from "@/lib/address"
-import { signOffchainAction } from "@/lib/sign-offchain-action"
-import { GovernanceWalletControl } from "@/components/GovernanceWalletControl"
-import { useGovernanceWallet } from "@/hooks/useGovernanceWallet"
-import {
-  governanceSnapshot,
-  governanceWalletMessage,
-  signGovernanceMessage,
-} from "@/lib/governance-wallet"
-
-const registryAddress = process.env.NEXT_PUBLIC_GROUP_REGISTRY as `0x${string}`
+import { useSession } from "@/lib/auth/use-session"
+import type { OrgKind } from "@/lib/community-orgs/types"
 
 export default function CreateOrganization() {
   const router = useRouter()
-  const { address } = useAccount()
-  const { signMessageAsync } = useSignMessage()
-  const governance = useGovernanceWallet()
-  const publicClient = usePublicClient()
+  const { account } = useSession()
 
   const [orgTitle, setOrgTitle] = useState("")
   const [orgDescription, setOrgDescription] = useState("")
   const [orgMode, setOrgMode] = useState<"Open" | "Manual" | "Automatic">("Open")
-  const [orgType, setOrgType] = useState<"ON_CHAIN" | "OFF_CHAIN">("OFF_CHAIN")
+  const [orgKind, setOrgKind] = useState<OrgKind>("community")
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState("")
 
   const handleCreate = async () => {
+    setCreateError("")
     if (!orgTitle.trim() || !orgDescription.trim()) {
-      alert("Title and description are required")
+      setCreateError("Title and description are required.")
       return
     }
-
-    if (orgType === "ON_CHAIN") {
-      setCreateError("")
-      if (!registryAddress) {
-        setCreateError("Governance setup is missing from this environment.")
-        return
-      }
-      const identity = process.env.NEXT_PUBLIC_IDENTITY_ADDRESS
-      if (!identity) {
-        setCreateError("Governance setup is missing from this environment.")
-        return
-      }
-      if (!publicClient) {
-        setCreateError("The organization was not created.")
-        return
-      }
-      setCreating(true)
-      try {
-        const modeValue = orgMode === "Manual" ? 1 : 0
-        const hash = await governance.writeContract({
-          address: registryAddress,
-          abi: registryAbi,
-          functionName: "createGroup",
-          args: [identity as `0x${string}`, orgTitle.trim(), orgDescription.trim(), modeValue],
-        })
-        const receipt = await publicClient.waitForTransactionReceipt({ hash })
-        if (receipt.status !== "success") {
-          setCreateError("The organization was not created.")
-          return
-        }
-        let group: `0x${string}` | undefined
-        for (const log of receipt.logs) {
-          try {
-            const decoded = decodeEventLog({
-              abi: registryAbi,
-              data: log.data,
-              topics: log.topics,
-            })
-            if (decoded.eventName !== "GroupCreated" || !decoded.args) continue
-            group = safeAddress((decoded.args as unknown as { group?: string }).group)
-            if (group) break
-          } catch {
-            // ignore unrelated logs
-          }
-        }
-        const walletAddress = governanceSnapshot().address
-        if (group && walletAddress) {
-          try {
-            const signed = await signOffchainAction({
-              action: "org-types.set",
-              resourceId: group,
-              voterId: walletAddress,
-              payload: { type: "ON_CHAIN" },
-              signMessageAsync: ({ message }) => signGovernanceMessage(message),
-            })
-            await fetch("/api/org-types/set", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                orgId: group,
-                type: "ON_CHAIN",
-                voterId: walletAddress,
-                ...signed,
-              }),
-            })
-          } catch {
-            // The registry already created the organization. Unknown orgs are treated as governance.
-          }
-        }
-        if (group) {
-          router.push(`/orgs/${group}`)
-          return
-        }
-        setCreateError("The organization was created, but this page could not open it.")
-      } catch (error: unknown) {
-        console.error("Create governance org failed:", error)
-        setCreateError(governanceWalletMessage(error))
-      } finally {
-        setCreating(false)
-      }
+    if (!account) {
+      setCreateError("Sign in before creating an organization.")
       return
     }
-
-    if (!address) {
-      alert("Sign in before creating an organization.")
-      return
-    }
-
-    if (orgType === "OFF_CHAIN") {
-      try {
-        const payload = {
+    setCreating(true)
+    try {
+      const res = await fetch("/api/community-orgs", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           title: orgTitle.trim(),
           description: orgDescription.trim(),
           membershipMode: orgMode,
-        }
-        const signed = await signOffchainAction({
-          action: "community.orgs.create",
-          resourceId: "new",
-          voterId: address,
-          payload,
-          signMessageAsync,
-        })
-        const res = await fetch("/api/community-orgs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...payload,
-            creatorAddress: address,
-            voterId: address,
-            ...signed,
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          alert(data?.error || "Failed to create community org")
-          return
-        }
-        if (data?.org?.id) {
-          router.push(`/orgs/${data.org.id}`)
-        } else {
-          alert("Create succeeded but no org id returned")
-        }
-      } catch (e: unknown) {
-        const err = e as { message?: string }
-        console.error("Create community org failed:", e)
-        alert("Create failed: " + (err?.message || "Unknown error"))
+          kind: orgKind,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setCreateError(typeof data?.error === "string" ? data.error : "The organization was not created.")
+        return
       }
-      return
+      if (data?.org?.id) {
+        router.push(`/orgs/${data.org.id}`)
+        return
+      }
+      setCreateError("The organization was created, but this page could not open it.")
+    } catch {
+      setCreateError("The organization was not created.")
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -174,7 +62,7 @@ export default function CreateOrganization() {
     <div className="min-h-screen bg-white text-zinc-900 p-8">
       <div className="max-w-2xl mx-auto">
         <button
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/orgs")}
           className="mb-10 text-gray-600 hover:text-zinc-900 flex items-center gap-2"
         >
           ← Back to Organizations
@@ -206,18 +94,18 @@ export default function CreateOrganization() {
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-2">Organization type</label>
               <select
-                value={orgType}
-                onChange={(e) => setOrgType(e.target.value as "ON_CHAIN" | "OFF_CHAIN")}
+                value={orgKind}
+                onChange={(e) => setOrgKind(e.target.value === "governance" ? "governance" : "community")}
                 className="w-full p-3 border border-zinc-200 rounded bg-white text-zinc-900"
               >
-                <option value="OFF_CHAIN">Community</option>
-                <option value="ON_CHAIN">Governance</option>
+                <option value="community">Community</option>
+                <option value="governance">Governance</option>
               </select>
-              {orgType === "ON_CHAIN" && (
-                <div className="mt-3">
-                  <GovernanceWalletControl wallet={governance} />
-                </div>
-              )}
+              <p className="mt-2 text-sm text-zinc-500">
+                {orgKind === "governance"
+                  ? "Governance: the stricter rules stay on. Members must read Perspectives before a ballot is accepted, and that cannot be turned off."
+                  : "Community: polls, discussion, and votes with rules this organization chooses."}
+              </p>
             </div>
 
             <div>
@@ -238,9 +126,7 @@ export default function CreateOrganization() {
               )}
             </div>
 
-            {createError && orgType === "ON_CHAIN" ? (
-              <p className="text-sm text-red-700">{createError}</p>
-            ) : null}
+            {createError ? <p className="text-sm text-red-700">{createError}</p> : null}
 
             <button
               type="button"

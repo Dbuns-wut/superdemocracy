@@ -46,17 +46,19 @@ export type BallotReceipt = {
   timestamp: number
 }
 
-export type CommunityVoteSummary = CommunityVote & {
-  tally: number[] | null
-  totalBallots: number | null
-}
-
 /** What a participant can see about their own submission. Never returned for anyone else. */
 export type OwnSubmission = {
   /** null when the vote uses a secret count and only participation is recorded. */
   choices: number[] | null
   timestamp: number | null
   linked: boolean
+}
+
+export type CommunityVoteSummary = CommunityVote & {
+  tally: number[] | null
+  totalBallots: number | null
+  /** Present only for the signed-in viewer's own submission. */
+  mySubmission?: OwnSubmission | null
 }
 
 export type CommunityVotePublic = {

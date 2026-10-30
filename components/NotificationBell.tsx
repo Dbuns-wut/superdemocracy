@@ -1,8 +1,8 @@
 "use client";
 
-import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSession } from "@/lib/auth/use-session";
 
 type MemberInvite = {
   id: string;
@@ -13,23 +13,24 @@ type MemberInvite = {
 };
 
 export function NotificationBell() {
-  const { address } = useAccount();
+  const { account } = useSession();
+  const accountId = account?.id ?? null;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [invites, setInvites] = useState<MemberInvite[]>([]);
-  const [loadedAddress, setLoadedAddress] = useState<string | null>(null);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
-    if (!address) return;
+    if (!accountId) return;
     try {
-      const res = await fetch(`/api/member-invites?user=${encodeURIComponent(address)}`);
+      const res = await fetch("/api/member-invites", { credentials: "include" });
       if (!res.ok) return;
       const data: unknown = await res.json();
       const invites =
         data && typeof data === "object" && "invites" in data ? data.invites : undefined;
       if (!Array.isArray(invites)) return;
-      setLoadedAddress(address);
+      setLoadedFor(accountId);
       setInvites(
         invites.flatMap((row) => {
           if (!row || typeof row !== "object") return [];
@@ -57,7 +58,7 @@ export function NotificationBell() {
     } catch {
       /* ignore */
     }
-  }, [address]);
+  }, [accountId]);
 
   useEffect(() => {
     const kick = window.setTimeout(() => {
@@ -87,16 +88,15 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
-  const shownInvites = address && loadedAddress === address ? invites : [];
+  const shownInvites = accountId && loadedFor === accountId ? invites : [];
   const unread = shownInvites.filter((i) => !i.read).length;
 
   const openApply = async (inv: MemberInvite) => {
-    if (address) {
+    if (accountId) {
       try {
         await fetch(`/api/member-invites/${encodeURIComponent(inv.id)}/read`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user: address }),
+          credentials: "include",
         });
       } catch {
         /* still navigate */
@@ -131,7 +131,7 @@ export function NotificationBell() {
           <div className="border-b border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-900">
             Invitations
           </div>
-          {!address ? (
+          {!accountId ? (
             <p className="p-3 text-sm text-zinc-600">Sign in to see these.</p>
           ) : shownInvites.length === 0 ? (
             <p className="p-3 text-sm text-zinc-500">No invitations yet.</p>

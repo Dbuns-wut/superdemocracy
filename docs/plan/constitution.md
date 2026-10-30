@@ -65,9 +65,11 @@ Where possible, the system should encourage **solution versus solution** rather 
 
 Users are required to open or acknowledge the relevant educational information before casting a vote. The gate is on by default for every organization.
 
-**Governance organizations** (on-chain referendums): the contract enforces acknowledgement independently of the user interface. Organizations may not turn this off.
+**Governance organizations:** the server enforces acknowledgement independently of the user interface. Organizations may not turn this off.
 
-**Community organizations** (off-chain): the gate is a user-interface gate only. It remains on by default. An organization administrator may turn it off in that organization's settings.
+**Community organizations:** the gate is on by default and enforced by the server while it is on. An organization administrator may turn it off in that organization's settings; doing so shows a warning that states what is affected, the pros and cons, and asks for confirmation.
+
+*Amended by decision #43 (D-2026-10-30-01): enforcement moved from a smart contract to the server; the community-organization gate is server-enforced rather than UI-only, and turning it off requires a warning and confirmation.*
 
 The purpose is not to test ideology or force agreement. It is to place relevant information directly in the path of the decision. The gate does not prove that a voter became informed.
 
@@ -251,9 +253,11 @@ Failure should be contained. Staged adoption, a clear review point, and a lawful
 
 Superdemocracy shall be capable of operating in accordance with the applicable laws and governing requirements of the organization using it.
 
-## Section 2. Auditor-Visible Ballots Are the Blockchain Default
+## Section 2. Auditor-Visible Ballots Are the Default
 
-For blockchain votes, the Superdemocracy default is an auditor-visible record.
+For every vote, the Superdemocracy default is an auditor-visible record.
+
+*Amended by decision #43 (D-2026-10-30-01): the default no longer depends on a blockchain and applies to every vote the platform hosts. Turning the record off shows a warning with what is affected, the pros and cons, and a confirmation.*
 
 The people appointed to count ballots — appointed the same way a jurisdiction appoints the people who count paper ballots — may see who voted and how they voted. Everyone else sees the tally, not the person-to-choice link.
 
@@ -275,7 +279,7 @@ Administrators, maintainers, organization officers, and privileged software role
 
 Superdemocracy shall work toward independently verifiable governance processes.
 
-Blockchain, encryption, digital identity, or any other technology may be used where useful, but the presence of a technology shall not by itself be treated as proof that an election is secure.
+Encryption, digital identity, audit logs, or any other technology may be used where useful, but the presence of a technology shall not by itself be treated as proof that an election is secure.
 
 Detailed security requirements belong in the Security Architecture rather than this Constitution.
 
@@ -437,9 +441,9 @@ Organizations remain free to configure or decline the platform according to thei
 
 ## Section 3. Technology May Change
 
-Blockchain, artificial intelligence, cryptographic systems, identity systems, frontend frameworks, and other implementation technologies may change as better tools emerge.
+Artificial intelligence, cryptographic systems, identity systems, databases, frontend frameworks, and other implementation technologies may change as better tools emerge.
 
-The project's governing purpose is more durable than any current technology stack.
+The project's governing purpose is more durable than any current technology stack. Decision #43 (D-2026-10-30-01) applied this section when the project left its blockchain stack.
 
 ---
 
@@ -449,7 +453,9 @@ The project's governing purpose is more durable than any current technology stac
 
 Keep three layers separate: **Rules, then Data and Evidence, then Experience.**
 
-Smart contracts enforce governance rules. Content and evidence live outside the contracts. The frontend presents the experience. Rules must never depend on user-interface behavior. The contract guardrails are in the system specification.
+The server enforces governance rules. Content and evidence live in their own stores, separate from the rules. The frontend presents the experience. Rules must never depend on user-interface behavior. The rule-layer guardrails are in the system specification.
+
+*Amended by decision #43 (D-2026-10-30-01): the rules layer is the server, not smart contracts.*
 
 ## Section 2. Protect the Architecture From Feature Drift
 
@@ -466,7 +472,7 @@ A new feature must not silently weaken an earlier protection. In particular:
 
 ## Section 3. Simplicity for the Participant
 
-The ordinary participant does not need to understand blockchains, voting theory, cryptographic proofs, or smart-contract architecture to cast a legitimate vote. The experience should feel obvious and calm. Complexity stays where experts can inspect it.
+The ordinary participant does not need to understand voting theory, cryptographic proofs, or system architecture to cast a legitimate vote. The experience should feel obvious and calm. Complexity stays where experts can inspect it.
 
 ## Section 4. One-Sentence Test
 

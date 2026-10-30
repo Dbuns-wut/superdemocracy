@@ -4,12 +4,11 @@ export const fetchCache = "force-no-store"
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { useAccount, useSignMessage } from "wagmi"
 import { AppSidebar } from "@/components/AppSidebar"
 import { SaveMorphButton } from "@/components/SaveMorphButton"
+import { useSession } from "@/lib/auth/use-session"
 import { profilePayload } from "@/lib/identity/profile-payload"
 import { writeLocalEmail } from "@/lib/identity/local-email"
-import { signOffchainAction } from "@/lib/sign-offchain-action"
 import type { IdentityProfile } from "@/lib/identity/types"
 
 function readPhoto(file: File): Promise<string> {
@@ -42,8 +41,8 @@ function readPhoto(file: File): Promise<string> {
 }
 
 export default function MyIdPage() {
-  const { address, isConnected } = useAccount()
-  const { signMessageAsync } = useSignMessage()
+  const { account, loading: sessionLoading, refresh } = useSession()
+  const accountId = account?.id ?? null
 
   const [displayName, setDisplayName] = useState("")
   const [email, setEmail] = useState("")
@@ -52,11 +51,11 @@ export default function MyIdPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadProfile = useCallback(async (addr: string) => {
+  const loadProfile = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/me?address=${encodeURIComponent(addr)}`)
+      const res = await fetch("/api/me", { credentials: "include" })
       const data = await res.json()
       if (!res.ok) {
         setError(typeof data?.error === "string" ? data.error : "Could not load your profile")
@@ -76,18 +75,18 @@ export default function MyIdPage() {
   }, [])
 
   useEffect(() => {
-    if (!address) {
+    if (!accountId) {
       setDisplayName("")
       setEmail("")
       setPhoto("")
       setBio("")
       return
     }
-    void loadProfile(address)
-  }, [address, loadProfile])
+    void loadProfile()
+  }, [accountId, loadProfile])
 
   const handleSave = async (): Promise<boolean> => {
-    if (!address) return false
+    if (!accountId) return false
     const name = displayName.trim()
     if (!name) {
       setError("Enter your name.")
@@ -101,17 +100,11 @@ export default function MyIdPage() {
       email,
     })
     try {
-      const signed = await signOffchainAction({
-        action: "identity.profile.update",
-        resourceId: address,
-        voterId: address,
-        payload,
-        signMessageAsync,
-      })
       const res = await fetch("/api/me", {
         method: "PUT",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, voterId: address, ...signed }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -125,14 +118,10 @@ export default function MyIdPage() {
       setBio(p.bio ?? "")
       if (p.email) writeLocalEmail(p.email)
       else writeLocalEmail("")
+      void refresh()
       return true
-    } catch (e: unknown) {
-      const msg = (e as { message?: string })?.message ?? ""
-      if (/reject|denied|cancel/i.test(msg)) {
-        setError("Save was canceled.")
-      } else {
-        setError("Could not save.")
-      }
+    } catch {
+      setError("Could not save.")
       return false
     }
   }
@@ -146,7 +135,9 @@ export default function MyIdPage() {
           <h1 className="text-2xl font-semibold text-zinc-900">My ID</h1>
           <p className="mt-2 text-sm text-zinc-600">Your name and photo. This is how people see you.</p>
 
-          {!isConnected || !address ? (
+          {sessionLoading ? (
+            <p className="mt-8 text-sm text-zinc-500">Loading…</p>
+          ) : !accountId ? (
             <div className="mt-8 rounded-lg border border-zinc-200 bg-zinc-50 p-6">
               <p className="text-sm text-zinc-600">Sign up or log in to fill this in.</p>
               <Link

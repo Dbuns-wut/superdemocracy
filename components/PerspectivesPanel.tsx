@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReferendumEducation } from "@/lib/education/types"
+import type { VoteEducation } from "@/lib/education/types"
 
 export function PerspectivesPanel({
   open,
@@ -13,7 +13,7 @@ export function PerspectivesPanel({
   showAcknowledge,
 }: {
   open: boolean
-  education: ReferendumEducation | null
+  education: VoteEducation | null
   loading: boolean
   onClose: () => void
   showAcknowledge: boolean

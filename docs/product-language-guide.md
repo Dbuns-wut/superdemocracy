@@ -1,47 +1,54 @@
-# Product Language Guide — Community Orgs
+# Product Language Guide
 
-This guide keeps product messaging aligned with the current architecture and roadmap.
+This guide keeps product messaging aligned with the current architecture and roadmap (decision #43, D-2026-10-30-01).
 
 ## Positioning rules
 
-- Community org voting is **off-chain**.
-- Users should not need to understand blockchain to use community org features.
-- Security claims should describe user-visible outcomes (authenticated voter, tamper resistance, auditability), not protocol internals.
+- Signing up is email and password. There is nothing to install.
+- Users should not need to understand how the system works internally to use it.
+- Security claims describe user-visible outcomes (signed-in voter, encrypted ballot, counter-only review, logged access), not internals.
+- Never claim identity verification, independent auditing, or a security control exists unless it is implemented.
 
 ## Preferred wording
 
-- "Secure off-chain voting"
-- "Verified voter action"
-- "Signed vote request (no transaction fee)"
-- "Private ballot handling"
-- "Auditor-only verification workflow"
+- "Organization", "member", "administrator", "counter" (the appointed person who may review ballots)
+- "Vote" for a governance vote; "poll" for a lightweight question
+- "Perspectives" for Education Before Vote content
 - "Vote accepted and counted." (do not name the choice on the ballot card)
-- "No gas fee required for community voting"
+- "Your submission" when showing a participant their own ballot
+- "Verification open / closed" for the review window
+- "Secret count" when an organization turns off the auditor-visible record
 
 ## Avoid in member-facing UX
 
-- "Broadcast transaction"
-- "Submit on-chain vote" (for community-org vote/poll flows)
-- "Wallet transaction required" (unless actually true)
-- "Smart contract interaction" in basic community voting screens
-- Any copy that implies community voting writes to chain
+- "Transaction", "wallet", "address", "signature", "key", "chain", "gas", "token"
+- "Auditor reveal" — say "Counter review"
+- "Off-chain" / "on-chain" — the distinction no longer exists
+- Any copy that implies a control exists when it does not (for example "independently audited")
 
 ## UI copy examples
 
-- Vote button helper text: "Your vote is authenticated with a free signature."
-- Signature prompt context: "Confirm to securely submit your vote (no blockchain fee)."
-- Error state (signature cancelled): "Vote not submitted. Signature request was canceled."
-- Success state: "Vote submitted securely."
+- Vote button: "Vote" / "Change vote"
+- Blocked by the education gate: "Read the education for this vote and confirm before casting your ballot."
+- Error state (not signed in): "Sign in first."
+- Error state (network): "Could not … Check your connection and try again."
+- Success state: "Vote accepted and counted."
+- Secret count submission: "Your ballot was recorded. This vote uses a secret count, so your choices are not stored with your name."
+
+## Setting changes
+
+When an administrator changes a setting that affects security, integrity, how voters see information, or the vote itself, show a centered warning modal: what is affected, the pros and cons, and Cancel / Confirm. Use `SettingWarningModal`.
 
 ## Internal messaging (docs/sales/ops)
 
-- Community orgs: fully off-chain vote execution and storage path (current persistence implementation may change over time).
-- Authentication: signed request proves voter intent and wallet control; nonce + expiry prevent replay.
-- Future UX direction: move toward passkeys/SSO/session flows while preserving equivalent backend security guarantees.
+- Ballots are encrypted at rest with a server-only key. The administrator cannot read them.
+- The appointed counter can review person-to-choice records only while verification is open, and every read is logged.
+- Education Before Vote is enforced by the server, not just the UI.
+- Banking-style security is the goal. Say so as a goal, not as a claim.
 
 ## Review checklist for new copy
 
-- Does this text imply a paid transaction for community votes? If yes, rewrite.
-- Does this text expose unnecessary blockchain mechanics to end users? If yes, simplify.
-- Does this text preserve truthful security claims? If no, tighten wording.
-- Is on-chain referendum language separated from community-org language? If no, split it.
+- Does this text name a system internal the member does not need? If yes, simplify.
+- Does this text claim a control that is not implemented? If yes, remove it.
+- Does this text show success before the server confirmed it? If yes, fix it.
+- Is "Community" versus "Governance" organization language kept distinct? If no, split it.

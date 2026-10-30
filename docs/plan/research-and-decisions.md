@@ -50,7 +50,7 @@ This document records why major design directions exist, what evidence informed 
 
 ## Decision 009 — Removed
 
-Superseded by decision-log entry 31, Blockchain Votes Default to Auditor-Visible Records (D-2026-10-09-01).
+Superseded by decision-log entry 31 (D-2026-10-09-01), Votes Default to Auditor-Visible Records, as extended by entry 43.
 
 ## Decision 010 — Identity / Ballot Separation
 **Decision:** Keep identity eligibility separate from ballot contents.
@@ -62,10 +62,12 @@ Superseded by decision-log entry 31, Blockchain Votes Default to Auditor-Visible
 
 **Why:** Future counting methods can change without destroying the underlying democratic record.
 
-## Decision 012 — Blockchain Is a Layer, Not the Whole Security Model
-**Decision:** Use blockchain as a governance ledger while pursuing end-to-end verifiability, privacy, coercion resistance, independent review, and adversarial testing.
+## Decision 012 — The Ledger Is a Layer, Not the Whole Security Model
+**Decision:** Treat the record store as one layer while pursuing end-to-end verifiability, privacy, coercion resistance, independent review, and adversarial testing.
 
-**Why:** A blockchain can faithfully preserve a vote that was already corrupted before submission.
+**Why:** Any ledger can faithfully preserve a vote that was already corrupted before submission.
+
+*Amended by decision #43 (D-2026-10-30-01): the ledger is the server's encrypted ballot store and audit log, not a blockchain.*
 
 ## Decision 013 — Local Experimentation
 **Decision:** Start at manageable organizational/community scales, learn from real use, then expand.

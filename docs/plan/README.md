@@ -41,10 +41,10 @@ If a proposed decision conflicts with the Constitution or a technical code, warn
 
 The code describes what *exists*. It does not outrank the vision. When code and a document disagree, record it in [../DECISION-LOG.md](../DECISION-LOG.md) and decide — never silently pick a side, and never delete working features to match a narrower document.
 
-Always preserve **democratic sovereignty**. Blockchain votes default to auditor-visible records. A secret count is an organization choice, and the tally stays public either way.
+Always preserve **democratic sovereignty**. Votes default to auditor-visible records. A secret count is an organization choice made after a warning, and the tally stays public either way.
 
-## Local chain
+## Local development
 
-Anvil for this project runs at `http://127.0.0.1:8546`, chain id `31338` (not the Anvil defaults — decision D-2026-09-09-03). Verify the running node before debugging the frontend. Deploy with `contracts/deploy.sh` (`cast send`), never `forge create`.
+`npm install`, then `npm run dev`. No chain, wallet, or extension is involved (decision #43, D-2026-10-30-01). Data lives in `data/*.json` unless `DATABASE_URL` is set. Set `BALLOT_ENCRYPTION_KEY` to cast ballots.
 
-Do not commit local Anvil keys or other dev-only credentials.
+Do not commit `.env.local` or other dev-only credentials.

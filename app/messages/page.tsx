@@ -1,21 +1,22 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useAccount, useSignMessage } from "wagmi";
 import { AppSidebar } from "@/components/AppSidebar";
-import { shortAddress } from "@/lib/address";
-import { signOffchainAction } from "@/lib/sign-offchain-action";
+import { PersonPicker } from "@/components/PersonPicker";
+import { useSession } from "@/lib/auth/use-session";
 import type { DirectMessage } from "@/lib/messages/store";
+import { usePeople } from "@/lib/people/use-people";
 
 function MessagesComposer() {
   const searchParams = useSearchParams();
-  const { address } = useAccount();
-  const { signMessageAsync } = useSignMessage();
+  const { account } = useSession();
+  const accountId = account?.id ?? null;
   const org = searchParams.get("org") ?? "";
   const draftParam = searchParams.get("draft") ?? "";
-  const [recipient, setRecipient] = useState("");
+  const toParam = searchParams.get("to") ?? "";
+  const [recipient, setRecipient] = useState<string | null>(toParam || null);
   const [message, setMessage] = useState(draftParam);
   const [inbox, setInbox] = useState<DirectMessage[]>([]);
   const [status, setStatus] = useState("");
@@ -26,51 +27,39 @@ function MessagesComposer() {
   }, [draftParam]);
 
   const loadInbox = useCallback(async () => {
-    if (!address) {
+    if (!accountId) {
       setInbox([]);
       return;
     }
-    const res = await fetch(`/api/messages?user=${encodeURIComponent(address)}`);
+    const res = await fetch("/api/messages", { credentials: "include" });
     const data = await res.json().catch(() => ({}));
     if (res.ok && Array.isArray(data.messages)) setInbox(data.messages);
-  }, [address]);
+  }, [accountId]);
 
   useEffect(() => {
     void loadInbox();
   }, [loadInbox]);
 
+  const counterparts = useMemo(() => inbox.flatMap((m) => [m.from, m.to]), [inbox]);
+  const { nameOf } = usePeople(counterparts);
+
   const handleSend = async () => {
-    if (!address) {
+    if (!accountId) {
       setStatus("Sign in to send.");
       return;
     }
-    if (!recipient.trim() || !message.trim()) {
+    if (!recipient || !message.trim()) {
       setStatus("Recipient and message are required.");
       return;
     }
     setSending(true);
     setStatus("");
     try {
-      const body = message.trim();
-      const to = recipient.trim();
-      const signed = await signOffchainAction({
-        action: "messages.send",
-        resourceId: to,
-        voterId: address,
-        payload: { to, body, orgId: org || null },
-        signMessageAsync,
-      });
       const res = await fetch("/api/messages", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: address,
-          to,
-          body,
-          orgId: org || null,
-          voterId: address,
-          ...signed,
-        }),
+        body: JSON.stringify({ to: recipient, body: message.trim(), orgId: org || null }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -78,11 +67,11 @@ function MessagesComposer() {
         return;
       }
       setMessage("");
-      setRecipient("");
+      setRecipient(null);
       setStatus("Sent.");
       await loadInbox();
     } catch {
-      setStatus("Send canceled or failed.");
+      setStatus("Could not send.");
     } finally {
       setSending(false);
     }
@@ -97,12 +86,12 @@ function MessagesComposer() {
         <div className="mt-8 space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-700">To</label>
-            <input
-              type="text"
+            <PersonPicker
               value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              placeholder="Member address"
-              className="w-full rounded border border-zinc-200 bg-white p-2 text-zinc-900 placeholder:text-zinc-500"
+              onChange={(id) => setRecipient(id)}
+              exclude={accountId ? [accountId] : []}
+              disabled={!accountId}
+              placeholder="Search a member by name or email"
             />
           </div>
           <div>
@@ -117,7 +106,7 @@ function MessagesComposer() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={sending || !address}
+              disabled={sending || !accountId}
               onClick={() => void handleSend()}
               className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -144,18 +133,18 @@ function MessagesComposer() {
 
         <div className="mt-10">
           <h2 className="text-lg font-medium text-zinc-900">Inbox</h2>
-          {!address ? (
+          {!accountId ? (
             <p className="mt-3 text-sm text-zinc-500">Sign in to see your messages.</p>
           ) : inbox.length === 0 ? (
             <p className="mt-3 text-sm text-zinc-500">No messages yet.</p>
           ) : (
             <ul className="mt-3 divide-y divide-zinc-200 border border-zinc-200 rounded">
               {inbox.map((m) => {
-                const mine = m.from.toLowerCase() === address.toLowerCase();
+                const mine = m.from.toLowerCase() === accountId.toLowerCase();
                 return (
                   <li key={m.id} className="p-3">
                     <p className="text-xs text-zinc-500">
-                      {mine ? `To ${shortAddress(m.to)}` : `From ${shortAddress(m.from)}`}
+                      {mine ? `To ${nameOf(m.to)}` : `From ${nameOf(m.from)}`}
                       {" · "}
                       {new Date(m.createdAt).toLocaleString()}
                     </p>

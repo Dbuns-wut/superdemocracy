@@ -165,11 +165,6 @@ async function jsonReadBallots(voteId: string): Promise<Ballot[]> {
   return rows.map(decryptStoredBallot)
 }
 
-async function jsonReadStoredBallots(voteId: string): Promise<StoredBallot[]> {
-  const ballotsByVote = await readJson<BallotsByVote>(BALLOTS_FILE, {})
-  return (ballotsByVote[voteId] ?? []).map(toStoredBallot)
-}
-
 async function jsonUpsertStoredBallot(voteId: string, stored: StoredBallot): Promise<void> {
   const ballotsByVote = await readJson<BallotsByVote>(BALLOTS_FILE, {})
   const existing = (ballotsByVote[voteId] ?? []).map(toStoredBallot)
@@ -561,6 +556,7 @@ export async function listCommunityVotesByOrgWithSummary(
       ...vote,
       tally: computeTally(vote, ballots),
       totalBallots: ballots.length,
+      mySubmission: viewer ? await getOwnSubmission(vote, viewer) : null,
     })
   }
   return summaries

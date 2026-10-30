@@ -2,20 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAccount, useSignMessage } from "wagmi";
-import { safeAddress } from "@/lib/address";
-import { isOffchainOrgId, normalizeOrgId } from "@/lib/org-id";
-import { signOffchainAction } from "@/lib/sign-offchain-action";
+import { useSession } from "@/lib/auth/use-session";
+import { normalizeOrgId } from "@/lib/org-id";
 import type { JoinRequirementField } from "@/lib/org-settings/types";
 
 type FieldValue = { text: string; fileId: string; fileName: string }
 
 export default function ApplyPage() {
-  const { address: userAddress } = useAccount();
-  const { signMessageAsync } = useSignMessage();
+  const { account } = useSession();
   const params = useParams();
   const router = useRouter();
-  const orgAddress = params?.address as string;
+  const orgParam = params?.orgId as string;
 
   const [applicationText, setApplicationText] = useState("");
   const [joinFields, setJoinFields] = useState<JoinRequirementField[]>([]);
@@ -24,8 +21,8 @@ export default function ApplyPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const orgKey = normalizeOrgId(orgAddress);
-    if (!orgKey || !isOffchainOrgId(orgKey)) return;
+    const orgKey = normalizeOrgId(orgParam);
+    if (!orgKey) return;
     let cancelled = false;
     ;(async () => {
       const res = await fetch(`/api/org-settings/${encodeURIComponent(orgKey)}`);
@@ -39,12 +36,12 @@ export default function ApplyPage() {
     return () => {
       cancelled = true;
     };
-  }, [orgAddress]);
+  }, [orgParam]);
 
   const uploadFile = async (fieldId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch("/api/join-files", { method: "POST", body: form });
+    const res = await fetch("/api/join-files", { method: "POST", body: form, credentials: "include" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.file?.id) {
       throw new Error(typeof data.error === "string" ? data.error : "Upload failed");
@@ -58,95 +55,48 @@ export default function ApplyPage() {
   const handleSubmit = async () => {
     setError(null);
     try {
-      const userAddr = safeAddress(userAddress);
-      if (!userAddr) {
+      if (!account) {
         setError("Sign in to apply.");
         return;
       }
-
-      const orgKey = normalizeOrgId(orgAddress);
-      const isCommunityManual = orgKey && isOffchainOrgId(orgKey);
-
-      if (isCommunityManual) {
-        for (const field of joinFields) {
-          const v = fieldValues[field.id];
-          const filled = field.type === "file" ? Boolean(v?.fileId) : Boolean(v?.text?.trim());
-          if (field.required && !filled) {
-            setError(`${field.label} is required`);
-            return;
-          }
-        }
-        const answers = joinFields.map((field) => ({
-          fieldId: field.id,
-          label: field.label,
-          type: field.type,
-          value: field.type === "file" ? fieldValues[field.id]?.fileId ?? "" : fieldValues[field.id]?.text?.trim() ?? "",
-        }));
-        setBusy(true);
-        const signed = await signOffchainAction({
-          action: "community.applications.create",
-          resourceId: orgKey,
-          voterId: userAddr,
-          payload: { message: applicationText, answers },
-          signMessageAsync,
-        });
-        const res = await fetch("/api/community-applications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orgId: orgKey,
-            user: userAddr,
-            message: applicationText,
-            answers,
-            voterId: userAddr,
-            ...signed,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.status === 409 && data.status === "already_applied") {
-          setError("Already applied");
-          return;
-        }
-
-        if (res.ok && data.status === "pending") {
-          router.push("/");
-          return;
-        }
-
-        setError(typeof data.error === "string" ? data.error : "Failed to submit application");
+      const orgKey = normalizeOrgId(orgParam);
+      if (!orgKey) {
+        setError("This organization link is not valid.");
         return;
       }
 
-      const orgAddr = safeAddress(orgAddress);
-      if (!orgAddr) {
-        setError("Missing organization address");
-        return;
+      for (const field of joinFields) {
+        const v = fieldValues[field.id];
+        const filled = field.type === "file" ? Boolean(v?.fileId) : Boolean(v?.text?.trim());
+        if (field.required && !filled) {
+          setError(`${field.label} is required`);
+          return;
+        }
       }
-
+      const answers = joinFields.map((field) => ({
+        fieldId: field.id,
+        label: field.label,
+        type: field.type,
+        value: field.type === "file" ? fieldValues[field.id]?.fileId ?? "" : fieldValues[field.id]?.text?.trim() ?? "",
+      }));
       setBusy(true);
-      const res = await fetch("http://localhost:3001/apply", {
+      const res = await fetch("/api/community-applications", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user: userAddr,
-          org: orgAddr,
-          message: applicationText,
-        }),
+        body: JSON.stringify({ orgId: orgKey, message: applicationText, answers }),
       });
+      const data = await res.json().catch(() => ({}));
 
-      const data = await res.json();
-
-      if (data.status === "pending") {
-        router.push("/");
-        return;
-      }
-
-      if (data.status === "already_applied") {
+      if (res.status === 409 && data.status === "already_applied") {
         setError("Already applied");
         return;
       }
-      setError("Failed to submit application");
+      if (res.ok && data.status === "pending") {
+        router.push("/orgs");
+        return;
+      }
+      setError(typeof data.error === "string" ? data.error : "Failed to submit application");
     } catch (err) {
       console.error(err);
       setError("Failed to submit application");
