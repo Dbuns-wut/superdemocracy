@@ -17,36 +17,63 @@ export function NotificationBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [invites, setInvites] = useState<MemberInvite[]>([]);
+  const [loadedAddress, setLoadedAddress] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
-    if (!address) {
-      setInvites([]);
-      return;
-    }
+    if (!address) return;
     try {
       const res = await fetch(`/api/member-invites?user=${encodeURIComponent(address)}`);
       if (!res.ok) return;
-      const data = await res.json();
-      if (Array.isArray(data.invites)) {
-        setInvites(data.invites);
-      }
+      const data: unknown = await res.json();
+      const invites =
+        data && typeof data === "object" && "invites" in data ? data.invites : undefined;
+      if (!Array.isArray(invites)) return;
+      setLoadedAddress(address);
+      setInvites(
+        invites.flatMap((row) => {
+          if (!row || typeof row !== "object") return [];
+          const item = row as Record<string, unknown>;
+          if (
+            typeof item.id !== "string" ||
+            typeof item.orgSlug !== "string" ||
+            typeof item.orgTitle !== "string" ||
+            typeof item.read !== "boolean" ||
+            typeof item.createdAt !== "number"
+          ) {
+            return [];
+          }
+          return [
+            {
+              id: item.id,
+              orgSlug: item.orgSlug,
+              orgTitle: item.orgTitle,
+              read: item.read,
+              createdAt: item.createdAt,
+            },
+          ];
+        })
+      );
     } catch {
       /* ignore */
     }
   }, [address]);
 
   useEffect(() => {
-    load();
-  }, [load]);
-
-  useEffect(() => {
-    const onFocus = () => load();
+    const kick = window.setTimeout(() => {
+      void load();
+    }, 0);
+    const onFocus = () => {
+      void load();
+    };
     window.addEventListener("focus", onFocus);
-    const id = setInterval(load, 45_000);
+    const id = window.setInterval(() => {
+      void load();
+    }, 45_000);
     return () => {
+      window.clearTimeout(kick);
       window.removeEventListener("focus", onFocus);
-      clearInterval(id);
+      window.clearInterval(id);
     };
   }, [load]);
 
@@ -60,7 +87,8 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
-  const unread = invites.filter((i) => !i.read).length;
+  const shownInvites = address && loadedAddress === address ? invites : [];
+  const unread = shownInvites.filter((i) => !i.read).length;
 
   const openApply = async (inv: MemberInvite) => {
     if (address) {
@@ -105,11 +133,11 @@ export function NotificationBell() {
           </div>
           {!address ? (
             <p className="p-3 text-sm text-zinc-600">Sign in to see these.</p>
-          ) : invites.length === 0 ? (
+          ) : shownInvites.length === 0 ? (
             <p className="p-3 text-sm text-zinc-500">No invitations yet.</p>
           ) : (
             <ul className="divide-y divide-zinc-100">
-              {invites.map((inv) => (
+              {shownInvites.map((inv) => (
                 <li key={inv.id}>
                   <button
                     type="button"

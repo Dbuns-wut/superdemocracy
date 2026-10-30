@@ -14,6 +14,21 @@ import { governanceWalletMessage } from "@/lib/governance-wallet"
 
 const registryAddress = process.env.NEXT_PUBLIC_GROUP_REGISTRY as `0x${string}`
 
+type ChainOrgLog = {
+  address: string
+  creator?: string
+  title: string
+  description: string
+  memberCount: number
+  createdAt: number
+}
+
+type JoinApplication = {
+  user: string
+  org: string
+  status: string
+}
+
 type HomeOrg = {
   isCommunity: boolean
   address: string
@@ -37,7 +52,7 @@ export default function Home() {
   const chainAddress = governance.address ?? undefined
   const publicClient = usePublicClient()
   const [search, setSearch] = useState("")
-  const [chainOrgs, setChainOrgs] = useState<any[]>([])
+  const [chainOrgs, setChainOrgs] = useState<ChainOrgLog[]>([])
   const [communityOrgs, setCommunityOrgs] = useState<CommunityOrg[]>([])
   const [orgTab, setOrgTab] = useState('all')
   const [orgTitle, setOrgTitle] = useState("")
@@ -46,7 +61,7 @@ export default function Home() {
   const [orgSortOrder, setOrgSortOrder] = useState<"newest" | "oldest" | "popular">("newest")
   const [showOrgSort, setShowOrgSort] = useState(false)
   const [updatingOrgs, setUpdatingOrgs] = useState<Set<string>>(new Set());
-  const [applications, setApplications] = useState<any[]>([]);
+  const [applications, setApplications] = useState<JoinApplication[]>([]);
   const [orgDetailsHoverId, setOrgDetailsHoverId] = useState<string | null>(null);
   const [orgDetailsPinnedId, setOrgDetailsPinnedId] = useState<string | null>(null);
 
@@ -203,7 +218,7 @@ export default function Home() {
           toBlock: "latest",
         })
 
-        const foundOrgs: any[] = []
+        const foundOrgs: ChainOrgLog[] = []
 
         for (const log of logs) {
           try {
@@ -399,7 +414,6 @@ export default function Home() {
   })
 
   const { data: pendingRequestData, refetch: refetchPendingRequests } = useReadContracts({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     contracts: chainOrgsInFilter
       .map((org) => {
         const safeOrgAddr = safeAddress(org.address)
@@ -420,12 +434,11 @@ export default function Home() {
           args: [user] as const,
         }
       })
-      .filter((contract): contract is NonNullable<typeof contract> => contract !== null) as any,
+      .filter((contract): contract is NonNullable<typeof contract> => contract !== null),
     allowFailure: false,
   })
 
   const { data: membershipModeData } = useReadContracts({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     contracts: chainOrgsInFilter
       .map((org) => {
         const safeOrgAddr = safeAddress(org.address)
@@ -444,7 +457,7 @@ export default function Home() {
           functionName: "membershipMode" as const,
         }
       })
-      .filter((contract): contract is NonNullable<typeof contract> => contract !== null) as any,
+      .filter((contract): contract is NonNullable<typeof contract> => contract !== null),
     allowFailure: false,
   })
   
@@ -501,8 +514,23 @@ export default function Home() {
     const fetchApps = async () => {
       try {
         const res = await fetch("http://localhost:3001/applications/all");
-        const data = await res.json();
-        setApplications(data);
+        const data: unknown = await res.json();
+        setApplications(
+          Array.isArray(data)
+            ? data.flatMap((row) => {
+                if (!row || typeof row !== "object") return [];
+                const item = row as Record<string, unknown>;
+                if (
+                  typeof item.user !== "string" ||
+                  typeof item.org !== "string" ||
+                  typeof item.status !== "string"
+                ) {
+                  return [];
+                }
+                return [{ user: item.user, org: item.org, status: item.status }];
+              })
+            : []
+        );
       } catch {
         setApplications([]);
       }
