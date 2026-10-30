@@ -21,11 +21,6 @@ export function WelcomeCard() {
   const [busy, setBusy] = useState(false)
 
   function enterAsGuest() {
-    try {
-      window.sessionStorage.setItem("sd-guest", "1")
-    } catch {
-      /* ignore */
-    }
     router.push("/orgs")
   }
 
