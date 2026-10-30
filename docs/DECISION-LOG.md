@@ -31,14 +31,42 @@ When a later entry replaces an older one, leave the old entry in place and put t
 
 > Superseded by N. Decision Name (D-YYYY-MM-DD-NN).
 
-IDs such as `D-2026-09-09-01` are stable references used by the plan documents. A display number and a D-id can both appear in the heading.
+IDs such as `D-2026-09-09-01` are stable references used by the plan documents. A display number and a D-id can both appear in the heading. An entry is dated the day it is committed. If an entry is edited after that, put a footnote directly under its heading saying what changed and when.
 
 ---
 
 # DECISIONS
 
+## 43. Non-Blockchain Platform and Solo-Maintainable Organization Voting (D-2026-10-30-01)
+**Date:** 2026-10-30
+
+**Decision:**
+- Superdemocracy no longer requires a blockchain. Accounts and governance actions must not require wallets, wallet extensions, cryptocurrency, seed phrases, gas, or a running chain. Governance rules are enforced by the server, not by smart contracts.
+- The blockchain build is preserved as the remote branch `archive/blockchain-relic` (commit `a7fa699`). The replacement is developed on a separate branch; once verified, the non-blockchain version becomes `main`. The legacy chain is not redeployed or modified to archive it. In the new version, blockchain references are removed everywhere except this log.
+- Governance votes and petition signatures stay linked to the participant's verified identity. A participant can review their own submissions. Only authorized auditors and appointed vote counters can inspect other participants' records. Ordinary members and the public cannot. This is a founder decision; the system is not redesigned as an unlinkable ballot.
+- Superdemocracy is a platform for hosting votes. The founder's recommendations are the default settings. An organization may change a setting, but when a setting affects security, integrity, how voters see information, or anything else that can affect the vote, changing it shows a warning modal: what will be affected, the pros and cons, and a confirmation. Entry 31's record toggle is one of those settings. Entry 15's modal is accepted.
+- Mobile banking is the model for account security, ease of use, confirmation of each action, recordkeeping, and investigation. This is a design goal, not a claim that the application meets banking standards today.
+- Verification happens at critical submission points: petition submission and after voting closes, before final acceptance or certification. Suspected tampering is investigated. Confirmed compromised submissions can be invalidated; affected participants are notified and may resubmit. The original record and its resolution are preserved; nothing is silently overwritten. Dispute deadlines and procedures are decided when needed.
+- The wedge launch is organization voting that one builder can maintain: create organization → manage eligible members → create vote → cast vote → review own submission → authorized counting and review → finalize result. Community and Governance organizations remain distinct. Existing working capabilities are kept, and functionality and UX stay the same where necessary and possible; nothing is removed to fit the wedge.
+- Underlying requirements survive the deferral: Education Before Vote (on by default, server-enforced for Governance organizations), ranked-choice support, immediately revocable topic delegation when delegation ships, petitions and liquid delegation later.
+- The account's blockchain address stops being a product concept. The per-account key from entry 42 may remain as an internal signing credential for record integrity; it is never shown as an address or wallet.
+
+**Why:** Blockchain was an implementation assumption, not a founding goal (Constitution Art. XII §3). The project's goals are trustworthy, usable governance and traceable confidential records. A server-enforced system with established auth and database practice reaches those with far less burden on a solo builder. Discussion summary: the Chief Architect weighed the wallet and gas requirement against the mobile-banking usability bar, confirmed that identity-linked confidential records (entry 31) are the founder position rather than a blockchain artifact, and chose a small organization-voting wedge over continuing the full on-chain platform.
+
+**Assumptions:** Established hosted auth and a relational database are enough for the wedge. Independent verification can be added later through audit logs, signed records, and external review rather than a public chain.
+
+**Revisit if:** an adopting organization legally requires on-chain or third-party-anchored records, or the server-trust model is shown insufficient for a high-stakes deployment.
+
+**Status:** Accepted direction; implementation pending.
+
+**Source:** Chief Architect, decided 2026-10-29, recorded 2026-10-30. Extends 31 (D-2026-10-09-01) beyond blockchain. Accepts the modal in 15. Amends 42 (D-2026-10-25-01) on the address. Constitution Art. II §3, VI §2, XIII §1 and the technical codes are amended to match.
+
+---
+
 ## 42. One account, one address (D-2026-10-25-01)
 **Date:** 2026-10-25
+
+> Amended by 43. Non-Blockchain Platform and Solo-Maintainable Organization Voting (D-2026-10-30-01). The address is no longer a product concept. The per-account key may remain as an internal signing credential.
 
 **Decision:** Each account has one address. That address is created with the account and comes back when the person signs in on any device. Votes and other account actions use that address only. A browser wallet cannot stand in as a second address while the person is in the account. The private key is stored as ciphertext encrypted with the password. The password itself stays a scrypt hash. Changing the password re-encrypts the same key. This is not a government ID check. Two different emails are still two accounts.
 
@@ -222,6 +250,8 @@ This is the north-star three-level architecture inside the existing name. It is 
 
 ## 31. Blockchain Votes Default to Auditor-Visible Records (D-2026-10-09-01)
 **Date:** 2026-10-09
+
+> Extended by 43. Non-Blockchain Platform and Solo-Maintainable Organization Voting (D-2026-10-30-01). The record no longer depends on a blockchain. The organization toggle stays, and changing it shows a warning modal with what is affected, the pros and cons, and a confirmation.
 
 **Decision:**
 - The goal is to make voting as secure and trusted as a bank transaction. The way to get there is to copy how banks do it: an appointed party can trace the record, the public sees the result, and misuse of that record is punished. Elections people trust are what make a fluid democracy usable, including frequent referendums and the further features that depend on a result people believe.
@@ -451,6 +481,8 @@ This is the north-star three-level architecture inside the existing name. It is 
 
 ## 15. Soft-Default Warning Modal
 **Date:** 2026-09-08
+
+> Accepted by 43. Non-Blockchain Platform and Solo-Maintainable Organization Voting (D-2026-10-30-01). The modal applies to any setting that affects security, integrity, how voters see information, or the vote itself.
 
 **Decision:** Bookmark a possible UI feature: when an organization changes a configurable governance setting away from the Superdemocracy soft default, show a warning explaining why the default exists, the main tradeoff or danger of changing it, and links to supporting research where available.
 
