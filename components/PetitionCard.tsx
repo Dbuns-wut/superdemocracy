@@ -12,6 +12,22 @@ import { abi as organizationAbi } from "@/abis/Organization.json"
 import { useOptionalOrganizationAddress } from "@/contexts/OrganizationAddressContext"
 import { OrgItemShareButton } from "@/components/OrgItemShareButton"
 
+type PetitionView = readonly [string, string, bigint, bigint, boolean, boolean, boolean]
+
+function isPetitionView(value: unknown): value is PetitionView {
+  return (
+    Array.isArray(value) &&
+    value.length >= 7 &&
+    typeof value[0] === "string" &&
+    typeof value[1] === "string" &&
+    typeof value[2] === "bigint" &&
+    typeof value[3] === "bigint" &&
+    typeof value[4] === "boolean" &&
+    typeof value[5] === "boolean" &&
+    typeof value[6] === "boolean"
+  )
+}
+
 export function PetitionCard({
   id,
   organizationAddress,
@@ -109,16 +125,9 @@ export function PetitionCard({
     return <p className="text-gray-600">Invalid organization address.</p>
   }
 
-  if (!data) return <div>Loading petition...</div>
+  if (!isPetitionView(data)) return <div>Loading petition...</div>
 
-  const {
-    0: title,
-    1: description,
-    2: threshold,
-    4: approved,
-    5: rejected,
-    6: referendumLaunched,
-  } = data as any
+  const [title, description, threshold, , approved, rejected, referendumLaunched] = data
 
   async function handleSign() {
     if (!walletAddress) {
@@ -369,7 +378,7 @@ export function PetitionCard({
         </div>
       </div>
 
-      {referendumLaunched && referendumAddress && (
+      {referendumLaunched && referendumAddress ? (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <p className="text-sm text-purple-600">
             Referendum: <span className="font-mono text-xs">{String(referendumAddress)}</span>
@@ -391,7 +400,7 @@ export function PetitionCard({
             overrideSharePath={`/referendum/${referendumAddress}`}
           />
         </div>
-      )}
+      ) : null}
 
       {submittedToAdmins && !approved && !rejected && !referendumLaunched && (
         <p className="mt-2 text-sm text-zinc-600">Submitted to admins for review.</p>

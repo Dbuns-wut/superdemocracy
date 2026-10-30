@@ -17,6 +17,14 @@ import { useOrgShortcutIcons } from "@/hooks/useOrgShortcutIcons"
 
 const registryAddress = process.env.NEXT_PUBLIC_GROUP_REGISTRY as `0x${string}`
 
+type RegistryOrg = {
+  address: string
+  creator?: string
+  title: string
+  description: string
+  memberCount: number
+}
+
 type PetitionFeedItem = {
   orgAddress: `0x${string}`
   petitionId: number
@@ -37,7 +45,7 @@ function PetitionsMain() {
 
   const { address } = useAccount()
   const publicClient = usePublicClient()
-  const [orgs, setOrgs] = useState<any[]>([])
+  const [orgs, setOrgs] = useState<RegistryOrg[]>([])
   const [petitionFeed, setPetitionFeed] = useState<PetitionFeedItem[]>([])
   const [signedPetitionKeys, setSignedPetitionKeys] = useState<Set<string>>(
     new Set()
@@ -83,7 +91,7 @@ function PetitionsMain() {
           toBlock: "latest",
         })
 
-        const foundOrgs: any[] = []
+        const foundOrgs: RegistryOrg[] = []
 
         for (const log of logs) {
           try {
@@ -132,7 +140,7 @@ function PetitionsMain() {
 
   useEffect(() => {
     if (!publicClient) return
-    const list = orgs as { address: string }[]
+    const list = orgs
     if (!list.length) {
       setPetitionFeed([])
       setSignedPetitionKeys(new Set())

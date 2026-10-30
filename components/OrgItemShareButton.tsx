@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 export type OrgShareKind = "event" | "poll" | "vote" | "petition" | "referendum";
@@ -52,6 +52,14 @@ function buildShareBlurb(title: string, url: string, description?: string): stri
 
 function openExternal(href: string) {
   window.open(href, "_blank", "noopener,noreferrer");
+}
+
+function subscribeSmsShare() {
+  return () => {}
+}
+
+function smsShareOnServer() {
+  return false
 }
 
 /** SMS / Messages deep links only work on most phones; desktop browsers usually ignore them. */
@@ -214,13 +222,9 @@ export function OrgItemShareButton({
   menuAlign = "right",
 }: OrgItemShareButtonProps) {
   const [open, setOpen] = useState(false);
-  const [showSmsShare, setShowSmsShare] = useState(false);
+  const showSmsShare = useSyncExternalStore(subscribeSmsShare, isPhoneLikeUserAgent, smsShareOnServer);
   const rootRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-
-  useEffect(() => {
-    setShowSmsShare(isPhoneLikeUserAgent());
-  }, []);
 
   useEffect(() => {
     if (!open) return;
