@@ -1,62 +1,54 @@
 import { NextResponse } from "next/server"
+import { requireAccount } from "@/lib/auth/session"
 import {
   createCommunityApplication,
   listCommunityApplications,
 } from "@/lib/community-applications/store"
+import { isCommunityOrgAdmin } from "@/lib/community-orgs/store"
 import { normalizeOrgId } from "@/lib/org-id"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
+/**
+ * Applications are private. An org admin sees applications to their org;
+ * anyone else sees only their own.
+ */
+export async function GET(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
+  const { searchParams } = new URL(request.url)
   const orgId = searchParams.get("orgId") ?? undefined
-  const user = searchParams.get("user") ?? undefined
   const status = searchParams.get("status") as "pending" | "approved" | "rejected" | undefined
   const normalizedOrg = orgId ? normalizeOrgId(orgId) : null
   if (orgId && !normalizedOrg) {
     return NextResponse.json({ error: "invalid org id" }, { status: 400 })
   }
+  const admin = normalizedOrg ? await isCommunityOrgAdmin(normalizedOrg, auth.account.id) : false
   const applications = await listCommunityApplications({
     orgId: normalizedOrg ?? undefined,
-    user: user ?? undefined,
+    user: admin ? undefined : auth.account.id,
     status: status && ["pending", "approved", "rejected"].includes(status) ? status : undefined,
   })
   return NextResponse.json({ applications })
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
   let body: Record<string, unknown>
   try {
-    body = (await req.json()) as Record<string, unknown>
+    body = (await request.json()) as Record<string, unknown>
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 })
   }
-  const orgIdRaw = String(body.orgId ?? "")
-  const orgId = normalizeOrgId(orgIdRaw)
+  const orgId = normalizeOrgId(String(body.orgId ?? ""))
   if (!orgId) {
     return NextResponse.json({ error: "invalid org id" }, { status: 400 })
   }
-  const user = String(body.user ?? body.voterId ?? "")
-  const message = String(body.message ?? "")
   const answers = Array.isArray(body.answers) ? body.answers : []
-  const origin = signedRequestOrigin(req)
-  const auth = await verifySignedAction({
-    action: "community.applications.create",
-    resourceId: orgId,
-    voterId: user,
-    choices: [],
-    payload: { message, answers },
-    nonce: String(body.nonce ?? ""),
-    issuedAt: Number(body.issuedAt),
-    expiresAt: Number(body.expiresAt),
-    signature: String(body.signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const result = await createCommunityApplication({
     orgId,
-    user: auth.signer,
-    message,
+    user: auth.account.id,
+    message: String(body.message ?? ""),
     answers: answers.map((row) => {
       const r = row as { fieldId?: string; label?: string; type?: string; value?: string }
       return {

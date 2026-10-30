@@ -25,9 +25,9 @@ export type SourceItem = {
   note: string
 }
 
-export type ReferendumEducation = {
-  /** Referendum contract address or community vote UUID. */
-  referendumAddress: string
+export type VoteEducation = {
+  /** The vote this education belongs to. */
+  voteId: string
   quickDebrief: QuickDebrief
   /** Pros vs Cons (binary) or one card per option. */
   perspectives: Perspective[]

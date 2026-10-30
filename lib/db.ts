@@ -48,12 +48,10 @@ export async function migrate(): Promise<void> {
         title TEXT NOT NULL,
         description TEXT NOT NULL,
         membership_mode TEXT NOT NULL,
-        creator_address TEXT NOT NULL,
+        creator_id TEXT NOT NULL,
+        auditor_id TEXT,
         created_at BIGINT NOT NULL
       );
-
-      ALTER TABLE community_orgs
-        ADD COLUMN IF NOT EXISTS auditor_address TEXT;
 
       CREATE TABLE IF NOT EXISTS ballot_audit_log (
         id TEXT PRIMARY KEY,
@@ -103,15 +101,13 @@ export async function migrate(): Promise<void> {
       );
 
       CREATE TABLE IF NOT EXISTS identity_profiles (
-        address TEXT PRIMARY KEY,
+        account_id TEXT PRIMARY KEY,
         display_name TEXT NOT NULL,
         avatar_url TEXT,
         bio TEXT,
         email TEXT,
         updated_at BIGINT NOT NULL
       );
-
-      ALTER TABLE identity_profiles ADD COLUMN IF NOT EXISTS email TEXT;
 
       CREATE TABLE IF NOT EXISTS accounts (
         id TEXT PRIMARY KEY,
@@ -121,30 +117,11 @@ export async function migrate(): Promise<void> {
         created_at BIGINT NOT NULL
       );
 
-      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS wallet_cipher TEXT;
-      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS wallet_address TEXT;
-
       CREATE TABLE IF NOT EXISTS auth_sessions (
         token_hash TEXT PRIMARY KEY,
         account_id TEXT NOT NULL,
         email TEXT NOT NULL,
         expires_at BIGINT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS signed_nonces (
-        nonce TEXT NOT NULL,
-        signer TEXT NOT NULL,
-        action TEXT NOT NULL,
-        expires_at BIGINT NOT NULL,
-        PRIMARY KEY (nonce, signer, action)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_signed_nonces_expires ON signed_nonces (expires_at);
-
-      CREATE TABLE IF NOT EXISTS education (
-        referendum_address TEXT PRIMARY KEY,
-        perspectives JSONB NOT NULL,
-        updated_at BIGINT NOT NULL
       );
     `)
   })

@@ -1,52 +1,47 @@
 import { promises as fs } from "fs"
 import path from "path"
 import { randomUUID } from "crypto"
-import { getAddress, isAddress } from "viem"
 import type {
   EvidenceItem,
   Perspective,
   QuickDebrief,
-  ReferendumEducation,
   SourceItem,
+  VoteEducation,
 } from "./types"
 import { emptyQuickDebrief } from "./types"
 
 const DATA_DIR = path.join(process.cwd(), "data")
-const FILE = path.join(DATA_DIR, "referendum-education.json")
+const FILE = path.join(DATA_DIR, "vote-education.json")
+const ACK_FILE = path.join(DATA_DIR, "vote-education-acks.json")
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-type Store = Record<string, ReferendumEducation>
+type Store = Record<string, VoteEducation>
+/** voteId -> account ids that acknowledged the education for that vote. */
+type AckStore = Record<string, string[]>
 
 function normalizeSubject(input: string): string | null {
   const t = input.trim()
   if (!t) return null
-  if (isAddress(t)) {
-    try {
-      return getAddress(t as `0x${string}`)
-    } catch {
-      return null
-    }
-  }
   if (UUID_RE.test(t)) return t.toLowerCase()
   return null
 }
 
-async function readStore(): Promise<Store> {
+async function readJson<T>(file: string, fallback: T): Promise<T> {
   try {
-    const raw = await fs.readFile(FILE, "utf8")
-    return JSON.parse(raw) as Store
+    const raw = await fs.readFile(file, "utf8")
+    return JSON.parse(raw) as T
   } catch (e: unknown) {
     const err = e as NodeJS.ErrnoException
-    if (err.code === "ENOENT") return {}
+    if (err.code === "ENOENT") return fallback
     throw e
   }
 }
 
-async function writeStore(store: Store): Promise<void> {
+async function writeJson(file: string, data: unknown): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true })
-  await fs.writeFile(FILE, JSON.stringify(store, null, 2), "utf8")
+  await fs.writeFile(file, JSON.stringify(data, null, 2), "utf8")
 }
 
 function asQuickDebrief(raw: unknown): QuickDebrief {
@@ -62,9 +57,9 @@ function asQuickDebrief(raw: unknown): QuickDebrief {
   }
 }
 
-function migrateEducation(subjectId: string, raw: ReferendumEducation): ReferendumEducation {
+function migrateEducation(voteId: string, raw: VoteEducation): VoteEducation {
   return {
-    referendumAddress: subjectId,
+    voteId,
     quickDebrief: asQuickDebrief(raw.quickDebrief),
     perspectives: Array.isArray(raw.perspectives) ? raw.perspectives : [],
     evidence: Array.isArray(raw.evidence) ? raw.evidence : [],
@@ -73,9 +68,9 @@ function migrateEducation(subjectId: string, raw: ReferendumEducation): Referend
   }
 }
 
-function defaultEducation(subjectId: string): ReferendumEducation {
+function defaultEducation(voteId: string): VoteEducation {
   return {
-    referendumAddress: subjectId,
+    voteId,
     quickDebrief: {
       what: "What is being decided is listed in the title and options on this page.",
       why: "Your choice helps the organization pick a direction on this issue.",
@@ -101,26 +96,24 @@ function defaultEducation(subjectId: string): ReferendumEducation {
   }
 }
 
-export async function getEducation(
-  subjectIdRaw: string
-): Promise<ReferendumEducation | null> {
-  const subjectId = normalizeSubject(subjectIdRaw)
-  if (!subjectId) return null
-  const store = await readStore()
-  const existing = store[subjectId.toLowerCase()]
+export async function getEducation(voteIdRaw: string): Promise<VoteEducation | null> {
+  const voteId = normalizeSubject(voteIdRaw)
+  if (!voteId) return null
+  const store = await readJson<Store>(FILE, {})
+  const existing = store[voteId]
   if (existing) {
     const needsMigrate =
       !existing.quickDebrief || !Array.isArray(existing.evidence) || !Array.isArray(existing.sources)
-    const migrated = migrateEducation(subjectId, existing)
+    const migrated = migrateEducation(voteId, existing)
     if (needsMigrate) {
-      store[subjectId.toLowerCase()] = migrated
-      await writeStore(store)
+      store[voteId] = migrated
+      await writeJson(FILE, store)
     }
     return migrated
   }
-  const seeded = defaultEducation(subjectId)
-  store[subjectId.toLowerCase()] = seeded
-  await writeStore(store)
+  const seeded = defaultEducation(voteId)
+  store[voteId] = seeded
+  await writeJson(FILE, store)
   return seeded
 }
 
@@ -168,30 +161,50 @@ function cleanSources(input: unknown): SourceItem[] {
 }
 
 export async function setEducation(input: {
-  referendumAddress: string
+  voteId: string
   perspectives: { title: string; body: string }[]
   quickDebrief?: unknown
   evidence?: unknown
   sources?: unknown
-}): Promise<
-  { ok: true; education: ReferendumEducation } | { ok: false; error: string; status: number }
-> {
-  const subjectId = normalizeSubject(input.referendumAddress)
-  if (!subjectId) return { ok: false, error: "invalid education subject", status: 400 }
+}): Promise<{ ok: true; education: VoteEducation } | { ok: false; error: string; status: number }> {
+  const voteId = normalizeSubject(input.voteId)
+  if (!voteId) return { ok: false, error: "invalid vote id", status: 400 }
   const perspectives = cleanPerspectives(input.perspectives)
   if (perspectives.length < 1) {
     return { ok: false, error: "at least one perspective required", status: 400 }
   }
-  const education: ReferendumEducation = {
-    referendumAddress: subjectId,
+  const education: VoteEducation = {
+    voteId,
     quickDebrief: asQuickDebrief(input.quickDebrief),
     perspectives,
     evidence: cleanEvidence(input.evidence),
     sources: cleanSources(input.sources),
     updatedAt: Date.now(),
   }
-  const store = await readStore()
-  store[subjectId.toLowerCase()] = education
-  await writeStore(store)
+  const store = await readJson<Store>(FILE, {})
+  store[voteId] = education
+  await writeJson(FILE, store)
   return { ok: true, education }
+}
+
+/** Record that a signed-in person read the education for a vote. Idempotent. */
+export async function acknowledgeEducation(voteIdRaw: string, accountId: string): Promise<boolean> {
+  const voteId = normalizeSubject(voteIdRaw)
+  if (!voteId) return false
+  const acks = await readJson<AckStore>(ACK_FILE, {})
+  const list = acks[voteId] ?? []
+  const key = accountId.toLowerCase()
+  if (!list.includes(key)) {
+    list.push(key)
+    acks[voteId] = list
+    await writeJson(ACK_FILE, acks)
+  }
+  return true
+}
+
+export async function hasAcknowledgedEducation(voteIdRaw: string, accountId: string): Promise<boolean> {
+  const voteId = normalizeSubject(voteIdRaw)
+  if (!voteId) return false
+  const acks = await readJson<AckStore>(ACK_FILE, {})
+  return (acks[voteId] ?? []).includes(accountId.toLowerCase())
 }

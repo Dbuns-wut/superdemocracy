@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { requireAccount } from "@/lib/auth/session"
 import { getActiveMutedUntil } from "@/lib/messageboard-mutes/store"
 import {
   createMessageboardPost,
@@ -39,13 +40,17 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireAccount(req)
+  if (!auth.ok) return auth.response
   let body: { user?: string; org?: string; text?: string }
   try {
     body = (await req.json()) as typeof body
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 })
   }
-  const user = String(body.user ?? "")
+  // Posts are always attributed to the signed-in account, never to a name in the body.
+  const user = auth.account.id
+  body = { ...body, user }
   const org = String(body.org ?? "")
   const text = String(body.text ?? "")
   const until = await getActiveMutedUntil(org, user)

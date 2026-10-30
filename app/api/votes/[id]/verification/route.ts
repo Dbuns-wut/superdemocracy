@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
+import { requireAccount } from "@/lib/auth/session"
 import { handleVerificationAction } from "@/lib/votes/store"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -9,6 +9,8 @@ export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params
   const voteId = decodeURIComponent(id ?? "").trim()
   if (!voteId) return NextResponse.json({ error: "vote id required" }, { status: 400 })
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
 
   let body: unknown
   try {
@@ -20,30 +22,15 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "expected JSON object" }, { status: 400 })
   }
 
-  const { action, voterId, nonce, issuedAt, expiresAt, signature } = body as Record<string, unknown>
+  const { action } = body as Record<string, unknown>
   const normalizedAction = String(action ?? "").trim().toLowerCase()
   if (normalizedAction !== "open" && normalizedAction !== "close") {
     return NextResponse.json({ error: "action must be open or close" }, { status: 400 })
   }
 
-  const origin = signedRequestOrigin(request)
-  const auth = await verifySignedAction({
-    action: "votes.verification",
-    resourceId: voteId,
-    voterId: String(voterId ?? ""),
-    choices: [],
-    payload: { step: normalizedAction },
-    nonce: String(nonce ?? ""),
-    issuedAt: Number(issuedAt),
-    expiresAt: Number(expiresAt),
-    signature: String(signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-
   const result = await handleVerificationAction({
     voteId,
-    signer: auth.signer,
+    signer: auth.account.id,
     action: normalizedAction as "open" | "close",
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })

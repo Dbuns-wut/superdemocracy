@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server"
+import { requireAccount } from "@/lib/auth/session"
+import { isVoteOrgAdmin } from "@/lib/votes/access"
 import { createCommunityVote } from "@/lib/votes/store"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
+/** Only the organization admin can create a vote. */
 export async function POST(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
   let body: unknown
   try {
     body = await request.json()
@@ -12,47 +16,16 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "expected JSON object" }, { status: 400 })
   }
-  const {
-    orgId,
-    title,
-    description,
-    options,
-    startTime,
-    endTime,
-    eligibleVoters,
-    allowVoteChange,
-    voterId,
-    nonce,
-    issuedAt,
-    expiresAt,
-    signature,
-  } = body as Record<string, unknown>
+  const { orgId, title, description, options, startTime, endTime, eligibleVoters, allowVoteChange } =
+    body as Record<string, unknown>
 
-  const payload = {
-    title: String(title ?? ""),
-    description: String(description ?? ""),
-    options,
-    startTime: Number(startTime),
-    endTime: Number(endTime),
-    allowVoteChange: Boolean(allowVoteChange),
+  const org = String(orgId ?? "")
+  if (!(await isVoteOrgAdmin(org, auth.account.id))) {
+    return NextResponse.json({ error: "only the organization admin can create a vote" }, { status: 403 })
   }
-  const origin = signedRequestOrigin(request)
-  const auth = await verifySignedAction({
-    action: "votes.create",
-    resourceId: String(orgId ?? ""),
-    voterId: String(voterId ?? ""),
-    choices: [],
-    payload,
-    nonce: String(nonce ?? ""),
-    issuedAt: Number(issuedAt),
-    expiresAt: Number(expiresAt),
-    signature: String(signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const result = await createCommunityVote({
-    orgId: String(orgId ?? ""),
+    orgId: org,
     title: String(title ?? ""),
     description: String(description ?? ""),
     options,
@@ -62,5 +35,5 @@ export async function POST(request: Request) {
     allowVoteChange: Boolean(allowVoteChange),
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
-  return NextResponse.json({ vote: result.vote, createdBy: auth.signer }, { status: 201 })
+  return NextResponse.json({ vote: result.vote, createdBy: auth.account.id }, { status: 201 })
 }

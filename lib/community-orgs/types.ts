@@ -1,26 +1,33 @@
 export type CommunityMembershipMode = "Open" | "Manual" | "Automatic"
 
+/**
+ * Community: polls, discussion, and votes with organization-chosen rules.
+ * Governance: votes with the stricter rules on; Education Before Vote cannot be turned off.
+ */
+export type OrgKind = "community" | "governance"
+
 export type CommunityViewerStatus = "creator" | "member" | "pending" | "none"
 
 export type CommunityOrg = {
   id: string
   title: string
   description: string
+  kind: OrgKind
   membershipMode: CommunityMembershipMode
-  creatorAddress: string
+  /** Account id of the person who runs this organization. */
+  creatorId: string
   /**
-   * Optional external auditor — only this wallet may reveal identity-linked ballots
-   * during an open verification window. Must differ from creatorAddress.
+   * Appointed counter. Only this account may open identity-linked ballots during a
+   * verification window. Must differ from creatorId.
    */
-  auditorAddress?: string | null
+  auditorId?: string | null
   /**
    * When true (the default), appointed counters can see who voted how.
    * When false, new votes in this organization do not keep that link.
-   * Missing means on, matching blockchain votes.
    */
   auditorVisibleBallots?: boolean
   createdAt: number
   memberCount?: number
-  /** Present when listing orgs with `?viewer=` (home page). */
+  /** Present when listing orgs for a signed-in viewer. */
   viewerStatus?: CommunityViewerStatus
 }

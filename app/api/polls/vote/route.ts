@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server"
-import { votePoll } from "@/lib/polls/store"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
+import { requireAccount } from "@/lib/auth/session"
+import { getPollById, votePoll } from "@/lib/polls/store"
+import { isVoteOrgMember } from "@/lib/votes/access"
 
 export async function POST(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
   let body: unknown
   try {
     body = await request.json()
@@ -12,27 +15,15 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "expected JSON object" }, { status: 400 })
   }
-  const { pollId, voterId, choices, nonce, issuedAt, expiresAt, signature } = body as Record<string, unknown>
-  const origin = signedRequestOrigin(request)
-  const auth = await verifySignedAction({
-    action: "polls.vote",
-    resourceId: String(pollId ?? ""),
-    voterId: String(voterId ?? ""),
-    choices,
-    nonce: String(nonce ?? ""),
-    issuedAt: Number(issuedAt),
-    expiresAt: Number(expiresAt),
-    signature: String(signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const { pollId, choices } = body as Record<string, unknown>
+  const id = String(pollId ?? "").trim()
+  const { poll } = await getPollById(id)
+  if (!poll) return NextResponse.json({ error: "poll not found" }, { status: 404 })
+  if (!(await isVoteOrgMember(poll.orgId, auth.account.id))) {
+    return NextResponse.json({ error: "only members of this organization can answer" }, { status: 403 })
+  }
 
-  const result = await votePoll({
-    pollId: String(pollId ?? ""),
-    voterId: auth.signer,
-    choices,
-  })
+  const result = await votePoll({ pollId: id, voterId: auth.account.id, choices })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
   return NextResponse.json({ vote: result.vote }, { status: 201 })
 }
-

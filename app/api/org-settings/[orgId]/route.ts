@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
+import { requireAccount } from "@/lib/auth/session"
+import { getCommunityOrgById } from "@/lib/community-orgs/store"
 import { getOrgSettings, setOrgSettings } from "@/lib/org-settings/store"
 import { isOrgSettingsAdmin } from "@/lib/org-settings/admin"
-import { isOffchainOrgId, normalizeOrgId } from "@/lib/org-id"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
+import { normalizeOrgId } from "@/lib/org-id"
 
 type Params = { params: Promise<{ orgId: string }> }
 
@@ -12,18 +13,19 @@ export async function GET(_: Request, context: Params) {
   if (!orgId) {
     return NextResponse.json({ error: "invalid org id" }, { status: 400 })
   }
+  const org = await getCommunityOrgById(orgId)
+  if (!org) return NextResponse.json({ error: "organization not found" }, { status: 404 })
   const settings = await getOrgSettings(orgId)
   if (!settings) {
     return NextResponse.json({ error: "invalid org id" }, { status: 400 })
   }
-  const community = isOffchainOrgId(orgId)
+  const governance = org.kind === "governance"
   return NextResponse.json({
     settings: {
       ...settings,
-      educationBeforeVote: community ? settings.educationBeforeVote : true,
-      joinRequirements: community ? settings.joinRequirements : [],
+      educationBeforeVote: governance ? true : settings.educationBeforeVote,
     },
-    community,
+    kind: org.kind,
   })
 }
 
@@ -33,6 +35,8 @@ export async function PUT(request: Request, context: Params) {
   if (!orgId) {
     return NextResponse.json({ error: "invalid org id" }, { status: 400 })
   }
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
   let body: Record<string, unknown>
   try {
     body = (await request.json()) as Record<string, unknown>
@@ -40,43 +44,21 @@ export async function PUT(request: Request, context: Params) {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 })
   }
 
-  const community = isOffchainOrgId(orgId)
-  const citizenInitiativesEnabled = Boolean(body.citizenInitiativesEnabled)
-  const educationBeforeVote = community ? Boolean(body.educationBeforeVote) : true
-  const joinRequirements = community ? body.joinRequirements : []
-  const voterId = String(body.voterId ?? "")
-  const origin = signedRequestOrigin(request)
-  const payload = {
-    citizenInitiativesEnabled,
-    educationBeforeVote,
-    joinRequirements,
-  }
-  const auth = await verifySignedAction({
-    action: "org.settings.set",
-    resourceId: orgId,
-    voterId,
-    choices: [],
-    payload,
-    nonce: String(body.nonce ?? ""),
-    issuedAt: Number(body.issuedAt),
-    expiresAt: Number(body.expiresAt),
-    signature: String(body.signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-
-  const allowed = await isOrgSettingsAdmin(orgId, auth.signer)
+  const org = await getCommunityOrgById(orgId)
+  if (!org) return NextResponse.json({ error: "organization not found" }, { status: 404 })
+  const allowed = await isOrgSettingsAdmin(orgId, auth.account.id)
   if (!allowed) {
     return NextResponse.json({ error: "only the organization admin can change settings" }, { status: 403 })
   }
 
+  const governance = org.kind === "governance"
   const result = await setOrgSettings({
     orgId,
-    citizenInitiativesEnabled,
-    educationBeforeVote,
-    joinRequirements,
-    lockEducationOn: !community,
+    citizenInitiativesEnabled: Boolean(body.citizenInitiativesEnabled),
+    educationBeforeVote: governance ? true : Boolean(body.educationBeforeVote),
+    joinRequirements: body.joinRequirements,
+    lockEducationOn: governance,
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
-  return NextResponse.json({ settings: result.settings, community })
+  return NextResponse.json({ settings: result.settings, kind: org.kind })
 }

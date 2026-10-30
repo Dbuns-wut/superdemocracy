@@ -6,8 +6,8 @@ import {
   getCommunityOrgById,
   getCommunityOrgMembersList,
   recordCommunityOrgMember,
-  normalizeCreator,
 } from "@/lib/community-orgs/store"
+import { isSameParticipant, normalizeParticipantId } from "@/lib/participant-id"
 import { getOrgSettings } from "@/lib/org-settings/store"
 import { getJoinFile } from "@/lib/join-files/store"
 
@@ -59,11 +59,8 @@ export async function listCommunityApplications(filters?: {
     rows = rows.filter((r) => r.orgId.toLowerCase() === t)
   }
   if (filters?.user) {
-    const u = normalizeCreator(filters.user)
-    if (u) {
-      const low = u.toLowerCase()
-      rows = rows.filter((r) => r.user.toLowerCase() === low)
-    }
+    const u = normalizeParticipantId(filters.user)
+    if (u) rows = rows.filter((r) => isSameParticipant(r.user, u))
   }
   if (filters?.status) {
     rows = rows.filter((r) => r.status === filters.status)
@@ -87,8 +84,8 @@ export async function createCommunityApplication(input: {
   if (org.membershipMode !== "Manual") {
     return { ok: false, error: "this organization does not require applications", status: 400 }
   }
-  const user = normalizeCreator(input.user)
-  if (!user) return { ok: false, error: "valid user address required", status: 400 }
+  const user = normalizeParticipantId(input.user)
+  if (!user) return { ok: false, error: "Sign in first.", status: 401 }
   const message = String(input.message ?? "").trim()
 
   const settings = await getOrgSettings(orgId)
@@ -120,7 +117,7 @@ export async function createCommunityApplication(input: {
   const pendingDup = rows.some(
     (r) =>
       r.orgId.toLowerCase() === orgId &&
-      r.user.toLowerCase() === user.toLowerCase() &&
+      isSameParticipant(r.user, user) &&
       r.status === "pending"
   )
   if (pendingDup) {
@@ -143,10 +140,10 @@ export async function createCommunityApplication(input: {
 
 export async function approveCommunityApplication(
   applicationId: string,
-  adminAddress: string
+  adminId: string
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  const admin = normalizeCreator(adminAddress)
-  if (!admin) return { ok: false, error: "valid admin address required", status: 400 }
+  const admin = normalizeParticipantId(adminId)
+  if (!admin) return { ok: false, error: "Sign in first.", status: 401 }
   const rows = await readApplications()
   const idx = rows.findIndex((r) => r.id === applicationId)
   if (idx === -1) return { ok: false, error: "application not found", status: 404 }
@@ -156,7 +153,7 @@ export async function approveCommunityApplication(
   }
   const org = await getCommunityOrgById(app.orgId)
   if (!org) return { ok: false, error: "org not found", status: 404 }
-  if (org.creatorAddress.toLowerCase() !== admin.toLowerCase()) {
+  if (!isSameParticipant(org.creatorId, admin)) {
     return { ok: false, error: "only the org creator can approve", status: 403 }
   }
 
@@ -172,10 +169,10 @@ export async function approveCommunityApplication(
 
 export async function rejectCommunityApplication(
   applicationId: string,
-  adminAddress: string
+  adminId: string
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  const admin = normalizeCreator(adminAddress)
-  if (!admin) return { ok: false, error: "valid admin address required", status: 400 }
+  const admin = normalizeParticipantId(adminId)
+  if (!admin) return { ok: false, error: "Sign in first.", status: 401 }
   const rows = await readApplications()
   const idx = rows.findIndex((r) => r.id === applicationId)
   if (idx === -1) return { ok: false, error: "application not found", status: 404 }
@@ -185,7 +182,7 @@ export async function rejectCommunityApplication(
   }
   const org = await getCommunityOrgById(app.orgId)
   if (!org) return { ok: false, error: "org not found", status: 404 }
-  if (org.creatorAddress.toLowerCase() !== admin.toLowerCase()) {
+  if (!isSameParticipant(org.creatorId, admin)) {
     return { ok: false, error: "only the org creator can reject", status: 403 }
   }
   rows[idx] = { ...app, status: "rejected" }
@@ -193,16 +190,14 @@ export async function rejectCommunityApplication(
   return { ok: true }
 }
 
-/** For home cards: membership + application state for a wallet. */
+/** For home cards: membership + application state for a signed-in person. */
 export async function viewerStatusForCommunityOrg(
   org: CommunityOrg,
   viewerRaw: string | null | undefined
 ): Promise<CommunityViewerStatus> {
-  if (!viewerRaw) return "none"
-  const viewer = normalizeCreator(viewerRaw)
+  const viewer = normalizeParticipantId(viewerRaw)
   if (!viewer) return "none"
-  const vlow = viewer.toLowerCase()
-  if (org.creatorAddress.toLowerCase() === vlow) return "creator"
+  if (isSameParticipant(org.creatorId, viewer)) return "creator"
 
   const pending = await listCommunityApplications({
     orgId: org.id,
@@ -212,7 +207,7 @@ export async function viewerStatusForCommunityOrg(
   if (pending.length > 0) return "pending"
 
   const members = await getCommunityOrgMembersList(org.id.toLowerCase())
-  if (members?.some((m) => m.toLowerCase() === vlow)) return "member"
+  if (members?.some((m) => isSameParticipant(m, viewer))) return "member"
 
   return "none"
 }

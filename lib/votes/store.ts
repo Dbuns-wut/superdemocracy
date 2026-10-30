@@ -1,14 +1,14 @@
 import { promises as fs } from "fs"
 import path from "path"
 import { randomUUID } from "crypto"
-import { getAddress, isAddress } from "viem"
 import {
   decryptBallotChoices,
   encryptBallotChoices,
 } from "@/lib/ballot-crypto"
 import { ensureMigrated, hasDatabase, withDbClient } from "@/lib/db"
 import { getCommunityOrgById } from "@/lib/community-orgs/store"
-import { isOffchainOrgId, normalizeOrgId } from "@/lib/org-id"
+import { normalizeOrgId } from "@/lib/org-id"
+import { normalizeParticipantId } from "@/lib/participant-id"
 import { isVoteOrgAdmin, isVoteOrgAuditor } from "./access"
 import { appendBallotAudit } from "./audit-log"
 import type {
@@ -17,6 +17,7 @@ import type {
   CommunityVote,
   CommunityVotePublic,
   CommunityVoteSummary,
+  OwnSubmission,
   StoredBallot,
   VerificationApproval,
   VoteStatus,
@@ -43,16 +44,6 @@ async function readJson<T>(file: string, fallback: T): Promise<T> {
 async function writeJson(file: string, data: unknown): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true })
   await fs.writeFile(file, JSON.stringify(data, null, 2), "utf8")
-}
-
-function normalizeEthAddress(input: string): string | null {
-  const t = typeof input === "string" ? input.trim() : ""
-  if (!t || !isAddress(t)) return null
-  try {
-    return getAddress(t as `0x${string}`)
-  } catch {
-    return null
-  }
 }
 
 function normalizeOptions(options: unknown): string[] | null {
@@ -313,10 +304,8 @@ export async function createCommunityVote(input: {
 }): Promise<{ ok: true; vote: CommunityVote } | { ok: false; error: string; status: number }> {
   const orgId = normalizeOrgId(input.orgId)
   if (!orgId) return { ok: false, error: "invalid orgId", status: 400 }
-  if (isOffchainOrgId(orgId)) {
-    const co = await getCommunityOrgById(orgId)
-    if (!co) return { ok: false, error: "community org not found", status: 404 }
-  }
+  const org = await getCommunityOrgById(orgId)
+  if (!org) return { ok: false, error: "organization not found", status: 404 }
   const title = input.title.trim()
   if (!title) return { ok: false, error: "title required", status: 400 }
   const options = normalizeOptions(input.options)
@@ -330,15 +319,11 @@ export async function createCommunityVote(input: {
 
   const eligibleVoters = Array.isArray(input.eligibleVoters)
     ? input.eligibleVoters
-        .map((v) => normalizeEthAddress(String(v)))
+        .map((v) => normalizeParticipantId(v))
         .filter((v): v is string => !!v)
     : []
 
-  let auditorVisible = true
-  if (isOffchainOrgId(orgId)) {
-    const co = await getCommunityOrgById(orgId)
-    auditorVisible = co?.auditorVisibleBallots !== false
-  }
+  const auditorVisible = org.auditorVisibleBallots !== false
 
   const vote: CommunityVote = {
     id: randomUUID(),
@@ -374,21 +359,26 @@ export async function castCommunityBallot(input: {
 }): Promise<{ ok: true; receipt: BallotReceipt } | { ok: false; error: string; status: number }> {
   const voteId = input.voteId.trim()
   if (!voteId) return { ok: false, error: "voteId required", status: 400 }
-  const voterId = normalizeEthAddress(input.voterId)
-  if (!voterId) return { ok: false, error: "invalid voterId", status: 400 }
+  const voterId = normalizeParticipantId(input.voterId)
+  if (!voterId) return { ok: false, error: "Sign in first.", status: 401 }
 
   const vote = hasDatabase() ? await pgReadVote(voteId) : (await jsonReadVotes()).find((v) => v.id === voteId) ?? null
   if (!vote) return { ok: false, error: "vote not found", status: 404 }
 
   const now = Date.now()
+  if (vote.status !== "active") return { ok: false, error: "vote is not open", status: 400 }
   if (now < vote.startTime) return { ok: false, error: "vote has not started", status: 400 }
   if (now > vote.endTime) return { ok: false, error: "vote has ended", status: 400 }
 
-  if (
-    vote.eligibleVoters.length > 0 &&
-    !vote.eligibleVoters.some((v) => v.toLowerCase() === voterId.toLowerCase())
-  ) {
-    return { ok: false, error: "voter not eligible", status: 403 }
+  if (vote.eligibleVoters.length > 0) {
+    if (!vote.eligibleVoters.some((v) => v.toLowerCase() === voterId)) {
+      return { ok: false, error: "voter not eligible", status: 403 }
+    }
+  } else {
+    const { isVoteOrgMember } = await import("./access")
+    if (!(await isVoteOrgMember(vote.orgId, voterId))) {
+      return { ok: false, error: "only members of this organization can vote", status: 403 }
+    }
   }
 
   if (!Array.isArray(input.choices) || input.choices.length === 0) {
@@ -470,10 +460,10 @@ async function pgMarkParticipated(voteId: string, voterId: string): Promise<void
 
 async function buildPublicView(
   vote: CommunityVote,
-  viewerAddress: string | null
+  viewerId: string | null
 ): Promise<CommunityVotePublic> {
   const { isVoteOrgMember } = await import("./access")
-  const isMember = viewerAddress ? await isVoteOrgMember(vote.orgId, viewerAddress) : false
+  const isMember = viewerId ? await isVoteOrgMember(vote.orgId, viewerId) : false
   if (!isMember) {
     return { vote, tally: null, totalBallots: null }
   }
@@ -490,16 +480,34 @@ async function buildPublicView(
 
 export async function getCommunityVotePublic(
   voteId: string,
-  viewerAddress?: string | null
+  viewerId?: string | null
 ): Promise<CommunityVotePublic | null> {
   const id = voteId.trim()
   if (!id) return null
-  const viewer = viewerAddress ? normalizeEthAddress(viewerAddress) : null
+  const viewer = normalizeParticipantId(viewerId)
   const vote = hasDatabase()
     ? await pgReadVote(id)
     : (await jsonReadVotes()).find((v) => v.id === id) ?? null
   if (!vote) return null
-  return buildPublicView(vote, viewer)
+  const view = await buildPublicView(vote, viewer)
+  if (!viewer) return view
+  return { ...view, mySubmission: await getOwnSubmission(vote, viewer) }
+}
+
+/**
+ * A participant's own submission. Only the person who cast it can see it.
+ * For votes that keep the person-to-choice link, the choices are returned.
+ * For secret-count votes, only the fact of participation is kept, so choices are null.
+ */
+async function getOwnSubmission(vote: CommunityVote, viewerId: string): Promise<OwnSubmission | null> {
+  if (vote.auditorVisible === false) {
+    const participated = await hasParticipated(vote.id, viewerId)
+    return participated ? { choices: null, timestamp: null, linked: false } : null
+  }
+  const ballots = hasDatabase() ? await pgReadBallots(vote.id) : await jsonReadBallots(vote.id)
+  const mine = ballots.find((b) => b.voterId.toLowerCase() === viewerId)
+  if (!mine) return null
+  return { choices: mine.choices, timestamp: mine.timestamp, linked: true }
 }
 
 /** @deprecated Use getCommunityVotePublic — never exposes ballot choices to clients. */
@@ -532,10 +540,10 @@ export async function listCommunityVotesByOrg(orgId: string): Promise<CommunityV
 
 export async function listCommunityVotesByOrgWithSummary(
   orgId: string,
-  viewerAddress?: string | null
+  viewerId?: string | null
 ): Promise<CommunityVoteSummary[]> {
   const votes = await listCommunityVotesByOrg(orgId)
-  const viewer = viewerAddress ? normalizeEthAddress(viewerAddress) : null
+  const viewer = normalizeParticipantId(viewerId)
   const { isVoteOrgMember } = await import("./access")
   const isMember = viewer ? await isVoteOrgMember(orgId, viewer) : false
 
@@ -571,8 +579,8 @@ export async function listAuditorBallots(input: {
 > {
   const id = input.voteId.trim()
   if (!id) return { ok: false, error: "vote id required", status: 400 }
-  const auditor = normalizeEthAddress(input.auditor)
-  if (!auditor) return { ok: false, error: "invalid auditor", status: 400 }
+  const auditor = normalizeParticipantId(input.auditor)
+  if (!auditor) return { ok: false, error: "Sign in first.", status: 401 }
 
   const vote = hasDatabase()
     ? await pgReadVote(id)
@@ -612,8 +620,8 @@ export async function handleVerificationAction(input: {
 }): Promise<{ ok: true; vote: CommunityVote } | { ok: false; error: string; status: number }> {
   const voteId = input.voteId.trim()
   if (!voteId) return { ok: false, error: "voteId required", status: 400 }
-  const signer = normalizeEthAddress(input.signer)
-  if (!signer) return { ok: false, error: "invalid signer", status: 400 }
+  const signer = normalizeParticipantId(input.signer)
+  if (!signer) return { ok: false, error: "Sign in first.", status: 401 }
   if (input.action !== "open" && input.action !== "close") {
     return { ok: false, error: "action must be open or close", status: 400 }
   }

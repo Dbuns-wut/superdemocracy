@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server"
+import { requireAccount, sessionAccount } from "@/lib/auth/session"
 import { createCommunityOrg, listCommunityOrgs } from "@/lib/community-orgs/store"
 import { enrichCommunityOrgsWithViewer } from "@/lib/community-applications/store"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
-export async function GET(req: Request) {
-  const viewer = new URL(req.url).searchParams.get("viewer")
+export async function GET(request: Request) {
   const orgs = await listCommunityOrgs()
-  if (!viewer?.trim()) {
-    return NextResponse.json({ orgs })
-  }
-  const enriched = await enrichCommunityOrgsWithViewer(orgs, viewer.trim())
+  const viewer = await sessionAccount(request)
+  if (!viewer) return NextResponse.json({ orgs })
+  const enriched = await enrichCommunityOrgsWithViewer(orgs, viewer.id)
   return NextResponse.json({ orgs: enriched })
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
   let body: unknown
   try {
     body = await request.json()
@@ -24,30 +24,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "expected JSON object" }, { status: 400 })
   }
   const b = body as Record<string, unknown>
-  const title = String(b.title ?? "")
-  const description = String(b.description ?? "")
-  const membershipMode = b.membershipMode
-  const creatorAddress = String(b.creatorAddress ?? b.voterId ?? "")
-  const origin = signedRequestOrigin(request)
-  const auth = await verifySignedAction({
-    action: "community.orgs.create",
-    resourceId: "new",
-    voterId: creatorAddress,
-    choices: [],
-    payload: { title, description, membershipMode },
-    nonce: String(b.nonce ?? ""),
-    issuedAt: Number(b.issuedAt),
-    expiresAt: Number(b.expiresAt),
-    signature: String(b.signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-
   const result = await createCommunityOrg({
-    title,
-    description,
-    membershipMode,
-    creatorAddress: auth.signer,
+    title: String(b.title ?? ""),
+    description: String(b.description ?? ""),
+    kind: b.kind,
+    membershipMode: b.membershipMode,
+    creatorId: auth.account.id,
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
   return NextResponse.json({ org: result.org }, { status: 201 })

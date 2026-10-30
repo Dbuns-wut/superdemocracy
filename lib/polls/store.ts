@@ -1,9 +1,9 @@
 import { promises as fs } from "fs"
 import path from "path"
 import { randomUUID } from "crypto"
-import { getAddress, isAddress } from "viem"
 import { getCommunityOrgById } from "@/lib/community-orgs/store"
-import { isOffchainOrgId, normalizeOrgId } from "@/lib/org-id"
+import { normalizeOrgId } from "@/lib/org-id"
+import { isSameParticipant, normalizeParticipantId } from "@/lib/participant-id"
 import type { Poll, PollType, PollWithSummary, Vote } from "./types"
 
 const DATA_DIR = path.join(process.cwd(), "data")
@@ -24,16 +24,6 @@ async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
 async function writeJsonFile(filePath: string, data: unknown): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true })
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf8")
-}
-
-function normalizeVoterId(addr: string): `0x${string}` | null {
-  const trimmed = typeof addr === "string" ? addr.trim() : ""
-  if (!trimmed || !isAddress(trimmed)) return null
-  try {
-    return getAddress(trimmed as `0x${string}`)
-  } catch {
-    return null
-  }
 }
 
 function normalizeOptions(options: unknown): string[] | null {
@@ -60,10 +50,8 @@ export async function createPoll(input: {
 }): Promise<{ ok: true; poll: Poll } | { ok: false; error: string; status: number }> {
   const orgId = normalizeOrgId(input.orgId)
   if (!orgId) return { ok: false, error: "invalid orgId", status: 400 }
-  if (isOffchainOrgId(orgId)) {
-    const co = await getCommunityOrgById(orgId)
-    if (!co) return { ok: false, error: "community org not found", status: 404 }
-  }
+  const co = await getCommunityOrgById(orgId)
+  if (!co) return { ok: false, error: "organization not found", status: 404 }
   const title = input.title?.trim()
   if (!title) return { ok: false, error: "title required", status: 400 }
   const description = (input.description ?? "").trim()
@@ -102,8 +90,8 @@ export async function votePoll(input: {
 }): Promise<{ ok: true; vote: Vote } | { ok: false; error: string; status: number }> {
   const pollId = typeof input.pollId === "string" ? input.pollId.trim() : ""
   if (!pollId) return { ok: false, error: "pollId required", status: 400 }
-  const voterId = normalizeVoterId(input.voterId)
-  if (!voterId) return { ok: false, error: "invalid voterId", status: 400 }
+  const voterId = normalizeParticipantId(input.voterId)
+  if (!voterId) return { ok: false, error: "Sign in first.", status: 401 }
 
   const polls = await readJsonFile<Poll[]>(POLLS_FILE, [])
   const poll = polls.find((p) => p.id === pollId)
@@ -124,9 +112,7 @@ export async function votePoll(input: {
   }
 
   const votes = await readJsonFile<Vote[]>(VOTES_FILE, [])
-  const existing = votes.find(
-    (v) => v.pollId === pollId && v.voterId.toLowerCase() === voterId.toLowerCase()
-  )
+  const existing = votes.find((v) => v.pollId === pollId && isSameParticipant(v.voterId, voterId))
   if (existing) {
     existing.choices = choices
     existing.timestamp = now
@@ -179,7 +165,7 @@ export async function listPollsByOrgWithSummary(
 ): Promise<PollWithSummary[]> {
   const org = normalizeOrgId(orgId)
   if (!org) return []
-  const voterNorm = voterIdInput ? normalizeVoterId(voterIdInput) : null
+  const voterNorm = normalizeParticipantId(voterIdInput)
   const polls = await readJsonFile<Poll[]>(POLLS_FILE, [])
   const allVotes = await readJsonFile<Vote[]>(VOTES_FILE, [])
   const o = org.toLowerCase()
@@ -195,7 +181,7 @@ export async function listPollsByOrgWithSummary(
     }
     let currentUserChoices: number[] | null = null
     if (voterNorm) {
-      const mine = pollVotesList.find((v) => v.voterId.toLowerCase() === voterNorm.toLowerCase())
+      const mine = pollVotesList.find((v) => isSameParticipant(v.voterId, voterNorm))
       if (mine) currentUserChoices = [...mine.choices]
     }
     return {

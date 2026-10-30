@@ -1,46 +1,29 @@
 import { NextResponse } from "next/server"
+import { requireAccount } from "@/lib/auth/session"
 import { setCommunityOrgAuditor } from "@/lib/community-orgs/store"
-import { isOffchainOrgId, normalizeOrgId } from "@/lib/org-id"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
+import { normalizeOrgId } from "@/lib/org-id"
 
 type Params = { params: Promise<{ id: string }> }
 
-/** Org admin designates an external auditor (must differ from admin). */
-export async function POST(req: Request, context: Params) {
+/** Org admin appoints the counter (must differ from admin). */
+export async function POST(request: Request, context: Params) {
   const { id } = await context.params
   const orgId = normalizeOrgId(id)
-  if (!orgId || !isOffchainOrgId(orgId)) {
-    return NextResponse.json({ error: "invalid community org id" }, { status: 400 })
-  }
+  if (!orgId) return NextResponse.json({ error: "invalid org id" }, { status: 400 })
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
 
   let body: Record<string, unknown>
   try {
-    body = (await req.json()) as Record<string, unknown>
+    body = (await request.json()) as Record<string, unknown>
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 })
   }
 
-  const auditorAddress = String(body.auditorAddress ?? "")
-  const voterId = String(body.voterId ?? body.adminAddress ?? "")
-  const origin = signedRequestOrigin(req)
-  const auth = await verifySignedAction({
-    action: "community.orgs.setAuditor",
-    resourceId: orgId,
-    voterId,
-    choices: [],
-    payload: { auditorAddress },
-    nonce: String(body.nonce ?? ""),
-    issuedAt: Number(body.issuedAt),
-    expiresAt: Number(body.expiresAt),
-    signature: String(body.signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-
   const result = await setCommunityOrgAuditor({
     orgId,
-    auditorAddress,
-    adminAddress: auth.signer,
+    auditorId: String(body.auditorId ?? ""),
+    adminId: auth.account.id,
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
   return NextResponse.json({ org: result.org })

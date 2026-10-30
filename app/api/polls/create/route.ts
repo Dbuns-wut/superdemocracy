@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server"
+import { requireAccount } from "@/lib/auth/session"
 import { createPoll } from "@/lib/polls/store"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
+import { isVoteOrgMember } from "@/lib/votes/access"
 
+/** Members of the organization can open a poll. */
 export async function POST(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
   let body: unknown
   try {
     body = await request.json()
@@ -12,46 +16,14 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "expected JSON object" }, { status: 400 })
   }
-  const {
-    orgId,
-    title,
-    description,
-    options,
-    type,
-    startTime,
-    endTime,
-    voterId,
-    nonce,
-    issuedAt,
-    expiresAt,
-    signature,
-  } = body as Record<string, unknown>
-
-  const payload = {
-    title: String(title ?? ""),
-    description: String(description ?? ""),
-    options,
-    type: String(type ?? ""),
-    startTime: Number(startTime),
-    endTime: Number(endTime),
+  const { orgId, title, description, options, type, startTime, endTime } = body as Record<string, unknown>
+  const org = String(orgId ?? "")
+  if (!(await isVoteOrgMember(org, auth.account.id))) {
+    return NextResponse.json({ error: "only members of this organization can open a poll" }, { status: 403 })
   }
-  const origin = signedRequestOrigin(request)
-  const auth = await verifySignedAction({
-    action: "polls.create",
-    resourceId: String(orgId ?? ""),
-    voterId: String(voterId ?? ""),
-    choices: [],
-    payload,
-    nonce: String(nonce ?? ""),
-    issuedAt: Number(issuedAt),
-    expiresAt: Number(expiresAt),
-    signature: String(signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const result = await createPoll({
-    orgId: String(orgId ?? ""),
+    orgId: org,
     title: String(title ?? ""),
     description: String(description ?? ""),
     options,
@@ -60,5 +32,5 @@ export async function POST(request: Request) {
     endTime: Number(endTime),
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
-  return NextResponse.json({ poll: result.poll, createdBy: auth.signer }, { status: 201 })
+  return NextResponse.json({ poll: result.poll, createdBy: auth.account.id }, { status: 201 })
 }

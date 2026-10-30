@@ -89,7 +89,7 @@ export async function setOrgSettings(input: {
     orgId,
     citizenInitiativesEnabled: Boolean(input.citizenInitiativesEnabled),
     educationBeforeVote,
-    joinRequirements: input.lockEducationOn ? [] : normalizeFields(input.joinRequirements),
+    joinRequirements: normalizeFields(input.joinRequirements),
     updatedAt: Date.now(),
   }
   const store = await readStore()

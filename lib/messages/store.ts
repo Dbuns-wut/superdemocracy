@@ -1,13 +1,14 @@
 import { promises as fs } from "fs"
 import path from "path"
 import { randomUUID } from "crypto"
-import { getAddress, isAddress } from "viem"
+import { isSameParticipant, normalizeParticipantId } from "@/lib/participant-id"
 
 const DATA_DIR = path.join(process.cwd(), "data")
 const FILE = path.join(DATA_DIR, "direct-messages.json")
 
 export type DirectMessage = {
   id: string
+  /** Account ids. */
   from: string
   to: string
   body: string
@@ -17,16 +18,6 @@ export type DirectMessage = {
 }
 
 type Store = { messages: DirectMessage[] }
-
-function normalizeEth(input: string): string | null {
-  const t = input.trim()
-  if (!t || !isAddress(t)) return null
-  try {
-    return getAddress(t as `0x${string}`)
-  } catch {
-    return null
-  }
-}
 
 async function readStore(): Promise<Store> {
   try {
@@ -45,13 +36,12 @@ async function writeStore(store: Store): Promise<void> {
   await fs.writeFile(FILE, JSON.stringify(store, null, 2), "utf8")
 }
 
-export async function listMessagesForUser(address: string): Promise<DirectMessage[]> {
-  const user = normalizeEth(address)
+export async function listMessagesForUser(accountId: string): Promise<DirectMessage[]> {
+  const user = normalizeParticipantId(accountId)
   if (!user) return []
   const store = await readStore()
-  const lower = user.toLowerCase()
   return store.messages
-    .filter((m) => m.from.toLowerCase() === lower || m.to.toLowerCase() === lower)
+    .filter((m) => isSameParticipant(m.from, user) || isSameParticipant(m.to, user))
     .sort((a, b) => b.createdAt - a.createdAt)
 }
 
@@ -61,11 +51,11 @@ export async function sendDirectMessage(input: {
   body: string
   orgId?: string | null
 }): Promise<{ ok: true; message: DirectMessage } | { ok: false; error: string; status: number }> {
-  const from = normalizeEth(input.from)
-  const to = normalizeEth(input.to)
-  if (!from) return { ok: false, error: "invalid sender", status: 400 }
-  if (!to) return { ok: false, error: "invalid recipient", status: 400 }
-  if (from.toLowerCase() === to.toLowerCase()) {
+  const from = normalizeParticipantId(input.from)
+  const to = normalizeParticipantId(input.to)
+  if (!from) return { ok: false, error: "Sign in first.", status: 401 }
+  if (!to) return { ok: false, error: "choose a recipient", status: 400 }
+  if (isSameParticipant(from, to)) {
     return { ok: false, error: "cannot message yourself", status: 400 }
   }
   const body = input.body.trim()

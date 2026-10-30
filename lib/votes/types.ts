@@ -2,6 +2,7 @@ export type VoteStatus = "draft" | "active" | "closed" | "verification" | "certi
 
 /** History of window open/close (admin lifecycle only — not ballot reveal). */
 export type VerificationApproval = {
+  /** Account id of the admin who opened or closed the window. */
   signer: string
   approvedAt: number
   action: "open" | "close"
@@ -50,8 +51,18 @@ export type CommunityVoteSummary = CommunityVote & {
   totalBallots: number | null
 }
 
+/** What a participant can see about their own submission. Never returned for anyone else. */
+export type OwnSubmission = {
+  /** null when the vote uses a secret count and only participation is recorded. */
+  choices: number[] | null
+  timestamp: number | null
+  linked: boolean
+}
+
 export type CommunityVotePublic = {
   vote: CommunityVote
   tally: number[] | null
   totalBallots: number | null
+  /** Present only for the signed-in viewer's own submission. */
+  mySubmission?: OwnSubmission | null
 }

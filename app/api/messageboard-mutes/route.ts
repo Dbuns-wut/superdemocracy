@@ -1,62 +1,42 @@
 import { NextResponse } from "next/server"
+import { requireAccount, sessionAccount } from "@/lib/auth/session"
 import {
   listActiveMutesForOrg,
   setMessageboardMute,
   clearMessageboardMute,
   getActiveMutedUntil,
 } from "@/lib/messageboard-mutes/store"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
   const orgKey = searchParams.get("orgKey") ?? ""
-  const viewer = searchParams.get("viewer") ?? undefined
   const mutes = await listActiveMutesForOrg(orgKey)
-  let viewerMutedUntil: number | null = null
-  if (viewer) {
-    viewerMutedUntil = await getActiveMutedUntil(orgKey, viewer)
-  }
+  const viewer = await sessionAccount(request)
+  const viewerMutedUntil = viewer ? await getActiveMutedUntil(orgKey, viewer.id) : null
   return NextResponse.json({ mutes, viewerMutedUntil })
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
   let body: Record<string, unknown>
   try {
-    body = (await req.json()) as Record<string, unknown>
+    body = (await request.json()) as Record<string, unknown>
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 })
   }
-  const orgKey = String(body.orgKey ?? "")
-  const targetUser = String(body.targetUser ?? "")
-  const adminAddress = String(body.adminAddress ?? body.voterId ?? "")
   const mutedUntilRaw = body.mutedUntil
   const mutedUntil =
-    typeof mutedUntilRaw === "number"
-      ? mutedUntilRaw
-      : Number.parseInt(String(mutedUntilRaw ?? ""), 10)
+    typeof mutedUntilRaw === "number" ? mutedUntilRaw : Number.parseInt(String(mutedUntilRaw ?? ""), 10)
   if (!Number.isFinite(mutedUntil)) {
     return NextResponse.json({ error: "mutedUntil required" }, { status: 400 })
   }
-  const origin = signedRequestOrigin(req)
-  const auth = await verifySignedAction({
-    action: "messageboard.mute.set",
-    resourceId: orgKey,
-    voterId: adminAddress,
-    choices: [],
-    payload: { targetUser, mutedUntil },
-    nonce: String(body.nonce ?? ""),
-    issuedAt: Number(body.issuedAt),
-    expiresAt: Number(body.expiresAt),
-    signature: String(body.signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const result = await setMessageboardMute({
-    orgKey,
-    targetUser,
+    orgKey: String(body.orgKey ?? ""),
+    targetUser: String(body.targetUser ?? ""),
     mutedUntil,
-    adminAddress: auth.signer,
+    adminId: auth.account.id,
   })
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })
@@ -64,35 +44,19 @@ export async function POST(req: Request) {
   return NextResponse.json({ record: result.record }, { status: 201 })
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
   let body: Record<string, unknown>
   try {
-    body = (await req.json()) as Record<string, unknown>
+    body = (await request.json()) as Record<string, unknown>
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 })
   }
-  const orgKey = String(body.orgKey ?? "")
-  const targetUser = String(body.targetUser ?? "")
-  const adminAddress = String(body.adminAddress ?? body.voterId ?? "")
-  const origin = signedRequestOrigin(req)
-  const auth = await verifySignedAction({
-    action: "messageboard.mute.clear",
-    resourceId: orgKey,
-    voterId: adminAddress,
-    choices: [],
-    payload: { targetUser },
-    nonce: String(body.nonce ?? ""),
-    issuedAt: Number(body.issuedAt),
-    expiresAt: Number(body.expiresAt),
-    signature: String(body.signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-
   const result = await clearMessageboardMute({
-    orgKey,
-    targetUser,
-    adminAddress: auth.signer,
+    orgKey: String(body.orgKey ?? ""),
+    targetUser: String(body.targetUser ?? ""),
+    adminId: auth.account.id,
   })
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })

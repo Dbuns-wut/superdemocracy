@@ -1,53 +1,28 @@
 import { NextResponse } from "next/server"
-import {
-  createMemberInvite,
-  listMemberInvitesForUser,
-} from "@/lib/member-invites/store"
-import { normalizeCreator } from "@/lib/community-orgs/store"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
+import { requireAccount } from "@/lib/auth/session"
+import { createMemberInvite, listMemberInvitesForUser } from "@/lib/member-invites/store"
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const user = searchParams.get("user") ?? ""
-  const normalized = normalizeCreator(user)
-  if (!normalized) {
-    return NextResponse.json({ error: "valid user address required" }, { status: 400 })
-  }
-  const invites = await listMemberInvitesForUser(normalized)
+/** The signed-in person's own invites. */
+export async function GET(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
+  const invites = await listMemberInvitesForUser(auth.account.id)
   return NextResponse.json({ invites })
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
   let body: Record<string, unknown>
   try {
-    body = (await req.json()) as Record<string, unknown>
+    body = (await request.json()) as Record<string, unknown>
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 })
   }
-  const inviter = String(body.inviter ?? body.voterId ?? "")
-  const orgSlug = String(body.orgSlug ?? "")
-  const orgTitle = String(body.orgTitle ?? "")
-  const invitee = String(body.invitee ?? "")
-  const origin = signedRequestOrigin(req)
-  const auth = await verifySignedAction({
-    action: "member-invites.create",
-    resourceId: orgSlug,
-    voterId: inviter,
-    choices: [],
-    payload: { orgTitle, invitee },
-    nonce: String(body.nonce ?? ""),
-    issuedAt: Number(body.issuedAt),
-    expiresAt: Number(body.expiresAt),
-    signature: String(body.signature ?? ""),
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-
   const result = await createMemberInvite({
-    orgSlug,
-    orgTitle,
-    invitee,
-    inviter: auth.signer,
+    orgSlug: String(body.orgSlug ?? ""),
+    invitee: String(body.invitee ?? ""),
+    inviter: auth.account.id,
   })
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })

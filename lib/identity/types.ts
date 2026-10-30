@@ -1,5 +1,5 @@
 export type IdentityProfile = {
-  address: `0x${string}`
+  accountId: string
   displayName: string
   avatarUrl?: string
   bio?: string

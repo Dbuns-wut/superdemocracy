@@ -1,22 +1,19 @@
 import { promises as fs } from "fs"
 import path from "path"
 import { randomUUID } from "crypto"
-import {
-  normalizeCreator,
-  getCommunityOrgById,
-} from "@/lib/community-orgs/store"
+import { getCommunityOrgById } from "@/lib/community-orgs/store"
 import { normalizeOrgId } from "@/lib/org-id"
-import { createPublicClient, http, type Address } from "viem"
-import { anvil } from "@/lib/web3-server"
+import { isSameParticipant, normalizeParticipantId } from "@/lib/participant-id"
 
 const DATA_DIR = path.join(process.cwd(), "data")
 const STORE_FILE = path.join(DATA_DIR, "member-invites.json")
 
 export type MemberInviteRecord = {
   id: string
-  /** Path segment for `/orgs/[address]/apply` */
+  /** Path segment for `/orgs/[orgId]/apply` */
   orgSlug: string
   orgTitle: string
+  /** Account ids. */
   invitee: string
   inviter: string
   createdAt: number
@@ -40,119 +37,55 @@ async function writeAll(rows: MemberInviteRecord[]): Promise<void> {
   await fs.writeFile(STORE_FILE, JSON.stringify(rows, null, 2), "utf8")
 }
 
-const orgAdminAbi = [
-  {
-    name: "isAdmin",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "user", type: "address" }],
-    outputs: [{ type: "bool" }],
-  },
-] as const
-
 async function assertInviterIsOrgAdmin(
-  orgSlug: string,
+  orgId: string,
   inviter: string
-): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  const inv = normalizeCreator(inviter)
-  if (!inv) return { ok: false, error: "invalid inviter", status: 400 }
-
-  const normalizedOrg = normalizeOrgId(orgSlug)
-  if (!normalizedOrg) {
-    return { ok: false, error: "invalid org", status: 400 }
+): Promise<{ ok: true; title: string } | { ok: false; error: string; status: number }> {
+  const inv = normalizeParticipantId(inviter)
+  if (!inv) return { ok: false, error: "Sign in first.", status: 401 }
+  const org = await getCommunityOrgById(orgId)
+  if (!org) return { ok: false, error: "org not found", status: 404 }
+  if (org.membershipMode !== "Manual") {
+    return { ok: false, error: "invites only for manual membership orgs", status: 400 }
   }
-
-  const uuidRe =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-  if (uuidRe.test(normalizedOrg)) {
-    const org = await getCommunityOrgById(normalizedOrg)
-    if (!org) return { ok: false, error: "org not found", status: 404 }
-    if (org.membershipMode !== "Manual") {
-      return { ok: false, error: "invites only for manual membership orgs", status: 400 }
-    }
-    if (org.creatorAddress.toLowerCase() !== inv.toLowerCase()) {
-      return { ok: false, error: "only the org admin can invite", status: 403 }
-    }
-    return { ok: true }
+  if (!isSameParticipant(org.creatorId, inv)) {
+    return { ok: false, error: "only the org admin can invite", status: 403 }
   }
-
-  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8546"
-  const client = createPublicClient({
-    chain: anvil,
-    transport: http(rpcUrl),
-  })
-  try {
-    const admin = await client.readContract({
-      address: normalizedOrg as Address,
-      abi: orgAdminAbi,
-      functionName: "isAdmin",
-      args: [inv as Address],
-    })
-    if (!admin) {
-      return { ok: false, error: "only the org admin can invite", status: 403 }
-    }
-  } catch {
-    return { ok: false, error: "could not verify admin on-chain", status: 400 }
-  }
-  return { ok: true }
+  return { ok: true, title: org.title }
 }
 
-export async function listMemberInvitesForUser(
-  wallet: string
-): Promise<MemberInviteRecord[]> {
-  const u = normalizeCreator(wallet)
+export async function listMemberInvitesForUser(accountId: string): Promise<MemberInviteRecord[]> {
+  const u = normalizeParticipantId(accountId)
   if (!u) return []
-  const low = u.toLowerCase()
   const rows = await readAll()
-  return rows
-    .filter((r) => r.invitee.toLowerCase() === low)
-    .sort((a, b) => b.createdAt - a.createdAt)
+  return rows.filter((r) => isSameParticipant(r.invitee, u)).sort((a, b) => b.createdAt - a.createdAt)
 }
 
 export async function createMemberInvite(input: {
   orgSlug: string
-  orgTitle: string
   invitee: string
   inviter: string
-}): Promise<
-  | { ok: true; invite: MemberInviteRecord }
-  | { ok: false; error: string; status: number }
-> {
-  const orgSlugNorm = normalizeOrgId(input.orgSlug.trim())
-  if (!orgSlugNorm) {
-    return { ok: false, error: "invalid org", status: 400 }
-  }
-  const invitee = normalizeCreator(input.invitee)
-  if (!invitee) {
-    return { ok: false, error: "invalid invitee address", status: 400 }
-  }
-  const inviterNorm = normalizeCreator(input.inviter)
-  if (inviterNorm && inviterNorm.toLowerCase() === invitee.toLowerCase()) {
+}): Promise<{ ok: true; invite: MemberInviteRecord } | { ok: false; error: string; status: number }> {
+  const orgId = normalizeOrgId(input.orgSlug.trim())
+  if (!orgId) return { ok: false, error: "invalid org", status: 400 }
+  const invitee = normalizeParticipantId(input.invitee)
+  if (!invitee) return { ok: false, error: "choose a person to invite", status: 400 }
+  const inviter = normalizeParticipantId(input.inviter)
+  if (!inviter) return { ok: false, error: "Sign in first.", status: 401 }
+  if (isSameParticipant(inviter, invitee)) {
     return { ok: false, error: "cannot invite yourself", status: 400 }
   }
 
-  const gate = await assertInviterIsOrgAdmin(orgSlugNorm, input.inviter)
+  const gate = await assertInviterIsOrgAdmin(orgId, inviter)
   if (!gate.ok) return gate
-
-  let title = input.orgTitle?.trim() ?? ""
-  if (!title) {
-    const uuidRe =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    if (uuidRe.test(orgSlugNorm)) {
-      const org = await getCommunityOrgById(orgSlugNorm)
-      title = org?.title ?? "Organization"
-    } else {
-      title = "Organization"
-    }
-  }
 
   const rows = await readAll()
   const invite: MemberInviteRecord = {
     id: randomUUID(),
-    orgSlug: orgSlugNorm,
-    orgTitle: title,
+    orgSlug: orgId,
+    orgTitle: gate.title,
     invitee,
-    inviter: normalizeCreator(input.inviter) ?? input.inviter,
+    inviter,
     createdAt: Date.now(),
     read: false,
   }
@@ -163,15 +96,15 @@ export async function createMemberInvite(input: {
 
 export async function markMemberInviteRead(
   id: string,
-  wallet: string
+  accountId: string
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  const u = normalizeCreator(wallet)
-  if (!u) return { ok: false, error: "invalid user", status: 400 }
+  const u = normalizeParticipantId(accountId)
+  if (!u) return { ok: false, error: "Sign in first.", status: 401 }
   const rows = await readAll()
   const idx = rows.findIndex((r) => r.id === id)
   if (idx === -1) return { ok: false, error: "not found", status: 404 }
   const row = rows[idx]
-  if (row.invitee.toLowerCase() !== u.toLowerCase()) {
+  if (!isSameParticipant(row.invitee, u)) {
     return { ok: false, error: "forbidden", status: 403 }
   }
   rows[idx] = { ...row, read: true }

@@ -1,8 +1,8 @@
 import { promises as fs } from "fs"
 import path from "path"
 import { randomUUID } from "crypto"
-import { getAddress, isAddress } from "viem"
-import type { CommunityMembershipMode, CommunityOrg } from "./types"
+import { isSameParticipant, normalizeParticipantId } from "@/lib/participant-id"
+import type { CommunityMembershipMode, CommunityOrg, OrgKind } from "./types"
 
 const DATA_DIR = path.join(process.cwd(), "data")
 const STORE_FILE = path.join(DATA_DIR, "community-orgs.json")
@@ -10,15 +10,38 @@ const POLLS_FILE = path.join(DATA_DIR, "polls.json")
 const POLL_VOTES_FILE = path.join(DATA_DIR, "poll-votes.json")
 const COMMUNITY_VOTES_FILE = path.join(DATA_DIR, "community-votes.json")
 const COMMUNITY_BALLOTS_FILE = path.join(DATA_DIR, "community-vote-ballots.json")
-/** Wallets that opened / joined a community org (off-chain); merged with vote-based inference. */
+/** Accounts that opened / joined an organization; merged with vote-based inference. */
 const COMMUNITY_ORG_MEMBERS_FILE = path.join(DATA_DIR, "community-org-members.json")
+
+function isOrgKind(v: unknown): v is OrgKind {
+  return v === "community" || v === "governance"
+}
+
+function fromStored(raw: unknown): CommunityOrg | null {
+  if (!raw || typeof raw !== "object") return null
+  const row = raw as Record<string, unknown>
+  const id = typeof row.id === "string" ? row.id.toLowerCase() : ""
+  const creatorId = normalizeParticipantId(row.creatorId)
+  if (!id || !creatorId) return null
+  return {
+    id,
+    title: String(row.title ?? ""),
+    description: String(row.description ?? ""),
+    kind: isOrgKind(row.kind) ? row.kind : "community",
+    membershipMode: isMembershipMode(row.membershipMode) ? row.membershipMode : "Open",
+    creatorId,
+    auditorId: normalizeParticipantId(row.auditorId),
+    auditorVisibleBallots: row.auditorVisibleBallots !== false,
+    createdAt: Number(row.createdAt ?? 0),
+  }
+}
 
 async function readOrgs(): Promise<CommunityOrg[]> {
   try {
     const raw = await fs.readFile(STORE_FILE, "utf8")
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) return []
-    return parsed
+    return parsed.map(fromStored).filter((o): o is CommunityOrg => o !== null)
   } catch (e: unknown) {
     const err = e as NodeJS.ErrnoException
     if (err.code === "ENOENT") return []
@@ -40,15 +63,6 @@ async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
 async function writeOrgs(orgs: CommunityOrg[]): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true })
   await fs.writeFile(STORE_FILE, JSON.stringify(orgs, null, 2), "utf8")
-}
-
-export function normalizeCreator(addr: string): `0x${string}` | null {
-  if (!isAddress(addr)) return null
-  try {
-    return getAddress(addr.trim() as `0x${string}`)
-  } catch {
-    return null
-  }
 }
 
 function isMembershipMode(v: unknown): v is CommunityMembershipMode {
@@ -82,10 +96,7 @@ async function buildCommunityMembersByOrg(): Promise<MembersByOrg> {
   const orgs = await readOrgs()
   const membersByOrg: MembersByOrg = new Map()
   for (const org of orgs) {
-    const set = new Set<string>()
-    const creator = normalizeCreator(org.creatorAddress)
-    if (creator) set.add(creator.toLowerCase())
-    membersByOrg.set(org.id.toLowerCase(), set)
+    membersByOrg.set(org.id, new Set([org.creatorId]))
   }
 
   const polls = await readJsonFile<Poll[]>(POLLS_FILE, [])
@@ -94,9 +105,9 @@ async function buildCommunityMembersByOrg(): Promise<MembersByOrg> {
   for (const poll of polls) pollOrgById.set(poll.id, String(poll.orgId).toLowerCase())
   for (const vote of pollVotes) {
     const orgId = pollOrgById.get(vote.pollId)
-    const voter = normalizeCreator(vote.voterId)
+    const voter = normalizeParticipantId(vote.voterId)
     if (!orgId || !voter) continue
-    membersByOrg.get(orgId)?.add(voter.toLowerCase())
+    membersByOrg.get(orgId)?.add(voter)
   }
 
   const { listBallotVoterIdsForOrg } = await import("@/lib/votes/store")
@@ -104,11 +115,9 @@ async function buildCommunityMembersByOrg(): Promise<MembersByOrg> {
   if (hasDatabase()) {
     for (const org of orgs) {
       const voterIds = await listBallotVoterIdsForOrg(org.id)
-      const orgId = org.id.toLowerCase()
       for (const voterId of voterIds) {
-        const voter = normalizeCreator(voterId)
-        if (!voter) continue
-        membersByOrg.get(orgId)?.add(voter.toLowerCase())
+        const voter = normalizeParticipantId(voterId)
+        if (voter) membersByOrg.get(org.id)?.add(voter)
       }
     }
   } else {
@@ -118,22 +127,19 @@ async function buildCommunityMembersByOrg(): Promise<MembersByOrg> {
       const orgId = String(vote.orgId).toLowerCase()
       const ballots = Array.isArray(ballotsByVote[vote.id]) ? ballotsByVote[vote.id] : []
       for (const ballot of ballots) {
-        const voter = normalizeCreator(ballot.voterId)
-        if (!voter) continue
-        membersByOrg.get(orgId)?.add(voter.toLowerCase())
+        const voter = normalizeParticipantId(ballot.voterId)
+        if (voter) membersByOrg.get(orgId)?.add(voter)
       }
     }
   }
 
   const explicit = await readExplicitCommunityOrgMembers()
   for (const org of orgs) {
-    const key = org.id.toLowerCase()
-    const addrs = explicit[key] ?? []
-    const set = membersByOrg.get(key)
+    const set = membersByOrg.get(org.id)
     if (!set) continue
-    for (const a of addrs) {
-      const v = normalizeCreator(a)
-      if (v) set.add(v.toLowerCase())
+    for (const a of explicit[org.id] ?? []) {
+      const v = normalizeParticipantId(a)
+      if (v) set.add(v)
     }
   }
 
@@ -149,49 +155,46 @@ async function buildCommunityMemberCounts(): Promise<Record<string, number>> {
   return counts
 }
 
-function checksummedAddresses(lowers: Iterable<string>): string[] {
-  const out: string[] = []
-  for (const low of lowers) {
-    const v = normalizeCreator(low)
-    if (v) out.push(v)
-  }
-  return [...new Set(out)].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
-}
-
 export async function getCommunityOrgMembersList(id: string): Promise<string[] | null> {
   const t = id?.trim().toLowerCase()
   if (!t) return null
   const orgs = await readOrgs()
-  if (!orgs.some((o) => o.id.toLowerCase() === t)) return null
+  if (!orgs.some((o) => o.id === t)) return null
   const membersByOrg = await buildCommunityMembersByOrg()
   const set = membersByOrg.get(t)
   if (!set) return []
-  return checksummedAddresses(set)
+  return [...set].sort()
+}
+
+export async function isCommunityOrgMember(orgId: string, participantId: string): Promise<boolean> {
+  const p = normalizeParticipantId(participantId)
+  if (!p) return false
+  const members = await getCommunityOrgMembersList(orgId)
+  return Boolean(members?.some((m) => isSameParticipant(m, p)))
 }
 
 export async function recordCommunityOrgMember(
   orgId: string,
-  memberAddress: string,
+  memberId: string,
   opts?: { fromApproval?: boolean }
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
   const t = orgId?.trim().toLowerCase()
   if (!t) return { ok: false, error: "invalid org id", status: 400 }
   const orgs = await readOrgs()
-  const org = orgs.find((o) => o.id.toLowerCase() === t)
+  const org = orgs.find((o) => o.id === t)
   if (!org) {
     return { ok: false, error: "org not found", status: 404 }
   }
   if (org.membershipMode === "Manual" && !opts?.fromApproval) {
     return { ok: false, error: "manual membership requires admin approval", status: 403 }
   }
-  const wallet = normalizeCreator(memberAddress)
-  if (!wallet) return { ok: false, error: "valid member address required", status: 400 }
+  const member = normalizeParticipantId(memberId)
+  if (!member) return { ok: false, error: "Sign in first.", status: 401 }
 
   const explicit = await readExplicitCommunityOrgMembers()
   const list = [...(explicit[t] ?? [])]
-  const low = wallet.toLowerCase()
-  if (!list.some((a) => normalizeCreator(a)?.toLowerCase() === low)) {
-    list.push(wallet)
+  if (!list.some((a) => isSameParticipant(a, member))) {
+    list.push(member)
   }
   explicit[t] = list
   await writeExplicitCommunityOrgMembers(explicit)
@@ -201,8 +204,9 @@ export async function recordCommunityOrgMember(
 export async function createCommunityOrg(input: {
   title: string
   description: string
+  kind: unknown
   membershipMode: unknown
-  creatorAddress: string
+  creatorId: string
 }): Promise<{ ok: true; org: CommunityOrg } | { ok: false; error: string; status: number }> {
   const title = input.title?.trim()
   if (!title) return { ok: false, error: "title required", status: 400 }
@@ -211,16 +215,18 @@ export async function createCommunityOrg(input: {
   if (!isMembershipMode(input.membershipMode)) {
     return { ok: false, error: "invalid membershipMode", status: 400 }
   }
-  const creatorAddress = normalizeCreator(input.creatorAddress)
-  if (!creatorAddress) return { ok: false, error: "valid creator address required", status: 400 }
+  const kind: OrgKind = isOrgKind(input.kind) ? input.kind : "community"
+  const creatorId = normalizeParticipantId(input.creatorId)
+  if (!creatorId) return { ok: false, error: "Sign in first.", status: 401 }
 
   const org: CommunityOrg = {
     id: randomUUID().toLowerCase(),
     title,
     description,
+    kind,
     membershipMode: input.membershipMode,
-    creatorAddress,
-    auditorAddress: null,
+    creatorId,
+    auditorId: null,
     auditorVisibleBallots: true,
     createdAt: Date.now(),
   }
@@ -230,9 +236,7 @@ export async function createCommunityOrg(input: {
   return { ok: true, org }
 }
 
-export async function getCommunityOrgById(
-  id: string
-): Promise<CommunityOrg | null> {
+export async function getCommunityOrgById(id: string): Promise<CommunityOrg | null> {
   const t = id?.trim().toLowerCase()
   if (!t) return null
   const orgs = await readOrgs()
@@ -246,31 +250,36 @@ export async function listCommunityOrgs(): Promise<CommunityOrg[]> {
   const orgs = await readOrgs()
   const counts = await buildCommunityMemberCounts()
   return [...orgs]
-    .map((org) => ({ ...org, memberCount: counts[org.id.toLowerCase()] ?? 1 }))
+    .map((org) => ({ ...org, memberCount: counts[org.id] ?? 1 }))
     .sort((a, b) => b.createdAt - a.createdAt)
 }
 
-/** Designate external auditor. Must not be the org admin (creator). */
+export async function isCommunityOrgAdmin(orgId: string, participantId: string): Promise<boolean> {
+  const org = await getCommunityOrgById(orgId)
+  return Boolean(org && isSameParticipant(org.creatorId, participantId))
+}
+
+/** Appoint the counter. Must not be the org admin (creator). */
 export async function setCommunityOrgAuditor(input: {
   orgId: string
-  auditorAddress: string
-  adminAddress: string
+  auditorId: string
+  adminId: string
 }): Promise<{ ok: true; org: CommunityOrg } | { ok: false; error: string; status: number }> {
   const t = input.orgId?.trim().toLowerCase()
   if (!t) return { ok: false, error: "invalid org id", status: 400 }
-  const admin = normalizeCreator(input.adminAddress)
-  if (!admin) return { ok: false, error: "valid admin address required", status: 400 }
-  const auditor = normalizeCreator(input.auditorAddress)
-  if (!auditor) return { ok: false, error: "valid auditor address required", status: 400 }
+  const admin = normalizeParticipantId(input.adminId)
+  if (!admin) return { ok: false, error: "Sign in first.", status: 401 }
+  const auditor = normalizeParticipantId(input.auditorId)
+  if (!auditor) return { ok: false, error: "choose a member to appoint", status: 400 }
 
   const orgs = await readOrgs()
-  const idx = orgs.findIndex((o) => o.id.toLowerCase() === t)
+  const idx = orgs.findIndex((o) => o.id === t)
   if (idx < 0) return { ok: false, error: "org not found", status: 404 }
   const org = orgs[idx]
-  if (org.creatorAddress.toLowerCase() !== admin.toLowerCase()) {
+  if (!isSameParticipant(org.creatorId, admin)) {
     return { ok: false, error: "only the org admin can set the auditor", status: 403 }
   }
-  if (auditor.toLowerCase() === org.creatorAddress.toLowerCase()) {
+  if (isSameParticipant(auditor, org.creatorId)) {
     return {
       ok: false,
       error: "the counter must be someone other than the person who runs this organization",
@@ -278,7 +287,7 @@ export async function setCommunityOrgAuditor(input: {
     }
   }
 
-  const next: CommunityOrg = { ...org, auditorAddress: auditor }
+  const next: CommunityOrg = { ...org, auditorId: auditor }
   orgs[idx] = next
   await writeOrgs(orgs)
   const counts = await buildCommunityMemberCounts()
@@ -288,22 +297,22 @@ export async function setCommunityOrgAuditor(input: {
 /** Organization setting. Applies to votes created after the change. */
 export async function setCommunityOrgAuditorVisibility(input: {
   orgId: string
-  adminAddress: string
+  adminId: string
   auditorVisibleBallots: boolean
 }): Promise<{ ok: true; org: CommunityOrg } | { ok: false; error: string; status: number }> {
   const t = input.orgId?.trim().toLowerCase()
   if (!t) return { ok: false, error: "invalid org id", status: 400 }
-  const admin = normalizeCreator(input.adminAddress)
-  if (!admin) return { ok: false, error: "valid admin address required", status: 400 }
+  const admin = normalizeParticipantId(input.adminId)
+  if (!admin) return { ok: false, error: "Sign in first.", status: 401 }
   if (typeof input.auditorVisibleBallots !== "boolean") {
     return { ok: false, error: "auditorVisibleBallots required", status: 400 }
   }
 
   const orgs = await readOrgs()
-  const idx = orgs.findIndex((o) => o.id.toLowerCase() === t)
+  const idx = orgs.findIndex((o) => o.id === t)
   if (idx < 0) return { ok: false, error: "org not found", status: 404 }
   const org = orgs[idx]
-  if (org.creatorAddress.toLowerCase() !== admin.toLowerCase()) {
+  if (!isSameParticipant(org.creatorId, admin)) {
     return { ok: false, error: "only the org admin can change ballot visibility", status: 403 }
   }
 
@@ -316,7 +325,5 @@ export async function setCommunityOrgAuditorVisibility(input: {
 
 export async function getCommunityOrgAuditor(orgId: string): Promise<string | null> {
   const org = await getCommunityOrgById(orgId)
-  const a = org?.auditorAddress
-  if (!a) return null
-  return normalizeCreator(a)
+  return normalizeParticipantId(org?.auditorId)
 }

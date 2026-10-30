@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
-import { createAccount } from "@/lib/auth/accounts"
+import { createAccount, toPublicAccount } from "@/lib/auth/accounts"
 import { sessionCookieHeader } from "@/lib/auth/cookie"
+import { upsertProfile } from "@/lib/identity/store"
 
 export async function POST(request: Request) {
   let body: { name?: unknown; email?: unknown; password?: unknown }
@@ -17,13 +18,11 @@ export async function POST(request: Request) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }
-  const res = NextResponse.json({
-    ok: true,
+  await upsertProfile(result.account.id, {
+    displayName: result.account.name,
     email: result.account.email,
-    name: result.account.name,
-    walletKey: result.walletKey,
-    walletAddress: result.walletAddress,
   })
+  const res = NextResponse.json({ ok: true, account: toPublicAccount(result.account) })
   res.headers.set("Set-Cookie", sessionCookieHeader(result.token))
   return res
 }

@@ -1,44 +1,21 @@
 import { NextResponse } from "next/server"
+import { requireAccount } from "@/lib/auth/session"
 import { listAuditorBallots } from "@/lib/votes/store"
-import { signedRequestOrigin, verifySignedAction } from "@/lib/request-signatures"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 /**
- * Designated auditor only. Org admin is rejected even if the window is open.
- * Requires signed votes.audit + auditor=1.
+ * Appointed counter only, and only while the verification window is open.
+ * The org admin is rejected even if the window is open.
  */
 export async function GET(request: Request, context: RouteContext) {
   const { id } = await context.params
   const voteId = decodeURIComponent(id ?? "").trim()
   if (!voteId) return NextResponse.json({ error: "vote id required" }, { status: 400 })
+  const auth = await requireAccount(request)
+  if (!auth.ok) return auth.response
 
-  const { searchParams } = new URL(request.url)
-  if (searchParams.get("auditor") !== "1") {
-    return NextResponse.json({ error: "auditor access required" }, { status: 403 })
-  }
-
-  const voterId = searchParams.get("voterId")?.trim() ?? ""
-  const nonce = searchParams.get("nonce")?.trim() ?? ""
-  const issuedAt = Number(searchParams.get("issuedAt"))
-  const expiresAt = Number(searchParams.get("expiresAt"))
-  const signature = searchParams.get("signature")?.trim() ?? ""
-
-  const origin = signedRequestOrigin(request)
-  const auth = await verifySignedAction({
-    action: "votes.audit",
-    resourceId: voteId,
-    voterId,
-    choices: [],
-    nonce,
-    issuedAt,
-    expiresAt,
-    signature,
-    origin,
-  })
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-
-  const result = await listAuditorBallots({ voteId, auditor: auth.signer })
+  const result = await listAuditorBallots({ voteId, auditor: auth.account.id })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
   return NextResponse.json({
     ballots: result.ballots,

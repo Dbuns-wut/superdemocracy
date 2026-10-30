@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { requireAccount } from "@/lib/auth/session"
 import { getActiveMutedUntil } from "@/lib/messageboard-mutes/store"
 import { reactToMessageboardPost } from "@/lib/messageboard/store"
 
@@ -16,13 +17,15 @@ async function tryBackend(path: string, init?: RequestInit): Promise<Response | 
 }
 
 export async function POST(req: Request) {
+  const auth = await requireAccount(req)
+  if (!auth.ok) return auth.response
   let body: { postId?: string; user?: string; reaction?: string; org?: string }
   try {
     body = (await req.json()) as typeof body
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 })
   }
-  const user = String(body.user ?? "")
+  const user = auth.account.id
   const org = String(body.org ?? "")
   if (!org) {
     return NextResponse.json({ error: "org required for messageboard actions" }, { status: 400 })

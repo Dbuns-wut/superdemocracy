@@ -12,11 +12,11 @@ export type OrgSettings = {
   /** Member-initiated petition → approval → launch. Soft default off (D-2026-09-09-01). */
   citizenInitiativesEnabled: boolean
   /**
-   * Education Before Vote UI gate. Soft default on.
-   * Community orgs may disable. Governance orgs ignore this — contract still enforces.
+   * Education Before Vote gate, enforced by the server when a ballot is cast. Soft default on.
+   * Community orgs may disable. Governance orgs cannot; the server treats it as always on.
    */
   educationBeforeVote: boolean
-  /** Per-org join fields (community orgs). Not global identity. */
+  /** Per-org join fields. Not global identity. */
   joinRequirements: JoinRequirementField[]
   updatedAt: number
 }
