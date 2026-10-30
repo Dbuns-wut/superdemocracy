@@ -70,7 +70,7 @@ The target is not simply “the blockchain says a transaction happened.” Voter
 
 This is essential for both auditability and coercion resistance.
 
-## Raw Ballots vs Tallies
+## Sealed Ballots vs Tallies
 Store sealed ballots as the durable record when auditor visibility is on. Keep tally logic separate so the public result does not require publishing each choice. A secret count does not store the choice with the voter.
 
 Do not implement complex ranked-choice or other tally algorithms inside the basic vote transaction.

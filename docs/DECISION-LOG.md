@@ -37,6 +37,64 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 # DECISIONS
 
+## 41. One Rulebook, and the Extra Plans Are Removed (D-2026-10-29-03)
+**Date:** 2026-10-29
+
+**Decision:** The North Star, the governance principles, and the Master Plan are folded into the Constitution, and those three files are deleted. The Constitution is the rulebook. The system specification, the security architecture, and the governance measurement document stay as separate technical codes. Contract guardrails that lived only in the Master Plan now live in the system specification. The decision log, the research file, the books, the product language guide, the data note, and the whiteboard pointer stay as they are.
+
+**Why:** Decision 40 left the merge for a later pass and said those documents would not be deleted yet. On 2026-10-29 the Chief Architect confirmed the set and said not to leave the old plans as pointer files. They are clutter. The discussion was the list of what each planning document was for, then the proposal of one numbered rulebook plus three technical codes, then the instruction to fold the plans in and remove them.
+
+**Status:** Accepted. Completes the merge that decision 40 deferred. Article XI is footnoted "amended by decision #41".
+
+**Source:** Chief Architect, 2026-10-29.
+
+---
+
+## 40. Constitution and Principles Use the Same Override Rule (D-2026-10-29-02)
+**Date:** 2026-10-29
+
+> The merge and deletion this entry deferred are done by 41. One Rulebook, and the Extra Plans Are Removed (D-2026-10-29-03).
+
+**Decision:** The Constitution and the governance principles are treated the same as the North Star and the Master Plan. They are starting documents. They can become outdated. A later decision log entry wins over any of them. Before recording a decision that conflicts with one of them, warn the Chief Architect. The Chief Architect then decides whether to override it. If the override goes ahead, that decision log entry holds the discussion summary and the reasons. When the starting documents are numbered as a codebook, the overridden clause gets a footnote: "amended by decision #x".
+
+**Why:** Decision 39 left the Constitution and the governance principles above the decision log. On 2026-10-29 the Chief Architect said they are the same kind of starting plan as the North Star and the Master Plan. There are also too many overlapping planning documents. Their purposes are listed for a later pass that keeps one codebook and numbers its clauses. This entry does not merge or delete those documents.
+
+**Status:** Accepted. Extends decision 39. The Pros vs Cons placement in decision 38 remains.
+
+**Source:** Chief Architect, 2026-10-29.
+
+---
+
+## 39. A Logged Decision Can Override the Starting Plan (D-2026-10-29-01)
+**Date:** 2026-10-29
+
+> Extended by 40. Constitution and Principles Use the Same Override Rule (D-2026-10-29-02). The Constitution and the governance principles are in the same class as the North Star and the Master Plan.
+
+**Decision:** The North Star and the Master Plan are the starting plan. They can become outdated. A later decision log entry wins over them. Before recording a decision that conflicts with either, warn the Chief Architect so there is time to think again. If the Chief Architect goes ahead, that entry holds the discussion summary and the reasons for overriding them.
+
+**Why:** Entry 38 was drafted to say the North Star and Master Plan win over the decision log. On 2026-10-29 the Chief Architect said that sentence was wrong. Those two documents are the original plan, not a veto. The discussion was: look at decisions 32 and 38, because the "they win" line might be a mistake; then the correction above.
+
+**Status:** Accepted. Corrects the authority sentence in entry 38. The Pros vs Cons placement in entry 38 remains. Updates Article XI and decisions 14 and 17 on this point.
+
+**Source:** Chief Architect, 2026-10-29.
+
+---
+
+## 38. Pros vs Cons Sits Inside the Quick Debrief (D-2026-10-28-01)
+**Date:** 2026-10-28
+
+> The authority sentence in the first draft of this entry is corrected by 39. A Logged Decision Can Override the Starting Plan (D-2026-10-29-01). The placement remains.
+
+**Decision:** Pros vs Cons sits inside the Quick Debrief. Decision 32's separate Pros vs Cons step is superseded. The member-facing name stays Perspectives.
+
+**Why:** The Chief Architect chose this placement on 2026-10-28. It matches the starting plan. The first draft also said the North Star and Master Plan win over the decision log. That rule was a mistake. Entry 39 is the rule.
+
+**Status:** Accepted for the placement.
+
+**Source:** Chief Architect, 2026-10-28.
+
+---
+
 ## 37. Signup requires a password (D-2026-10-20-01)
 **Date:** 2026-10-20
 
@@ -124,6 +182,8 @@ Current code: `signPetition` increments `verifiedCount` once and does not re-che
 ## 32. Perspectives Maps Onto The Three Information Levels (D-2026-09-16-01)
 **Date:** 2026-09-16
 
+> Superseded by 38. Pros vs Cons Sits Inside the Quick Debrief (D-2026-10-28-01). This applies to the separate Pros vs Cons step. The Perspectives name remains.
+
 **Decision:** **Perspectives** remains the member-facing name. Inside that panel, content is ordered as:
 
 1. **Quick Debrief** ? what / why / known / disputed / uncertain
@@ -135,7 +195,7 @@ This is the north-star three-level architecture inside the existing name. It is 
 
 **Why:** D-2026-09-09-06 required mapping without losing "Perspectives". The running app now shows that mapping so it can be confirmed.
 
-**Status:** Accepted as the implementation mapping; confirm visually.
+**Status:** The separate Pros vs Cons step is superseded by 38 (D-2026-10-28-01). The Perspectives name remains.
 
 **Source:** Chief Architect decision D-2026-09-09-06 + this implementation.
 
@@ -310,7 +370,7 @@ This is the north-star three-level architecture inside the existing name. It is 
 
 **Explicit departure (Constitution Article X Section 2):** Education Before Vote remains a core gate and is on by default. It is optional **for community orgs only**. Canonical wording was amended 2026-09-10 after Chief Architect approval.
 
-**Status:** Accepted. Canonical documents amended. Community-org UI gate not yet implemented. See [plan/todo.md](plan/todo.md).
+**Status:** Accepted. Canonical documents amended. The community-org UI gate is in org settings, and the launch checklist marks it done. See [plan/todo.md](plan/todo.md).
 
 **Source:** Chief Architect decision.
 
@@ -345,6 +405,8 @@ This is the north-star three-level architecture inside the existing name. It is 
 ## 17. In-Repo Document Authority Follows the Constitution (D-2026-09-09-02)
 **Date:** 2026-09-09
 
+> The rank of the decision log against the North Star and Master Plan is updated by 39. A Logged Decision Can Override the Starting Plan (D-2026-10-29-01). Code still does not outrank the vision.
+
 **Decision:** The in-repo authority order ([plan/README.md](plan/README.md)) is the Constitution's order (Article XI). The previous in-repo ordering that ranked "current code" first is superseded. Code describes what *exists*; it does not *outrank* the vision documents. Code/doc conflicts are logged here and decided, never resolved by assuming the code is right.
 
 **Why:** The handoff package is the current canonical set and outranks the older plan documents.
@@ -362,7 +424,7 @@ This is the north-star three-level architecture inside the existing name. It is 
 
 **Why:** The flow exists in `Organization.sol`, but most real organizations do not allow member-initiated proposals today. Forcing it on would misrepresent how they govern.
 
-**Status:** Accepted. Documented only; not being built now so the current work is not sidetracked.
+**Status:** Accepted. On 2026-09-09 this was documented only, so that day's work would not be sidetracked. Org settings now include the citizen-initiative and Education Before Vote toggles.
 
 **Source:** Chief Architect decision.
 
@@ -385,6 +447,8 @@ Example use: disabling Expert Qualification could warn that popular or charismat
 
 ## 14. Canonical Document Hierarchy
 **Date:** 2026-09-08
+
+> The rank of the decision log against the Master Plan is updated by 39. A Logged Decision Can Override the Starting Plan (D-2026-10-29-01).
 
 **Decision:** When project documents conflict, use this order:
 
@@ -604,3 +668,5 @@ If the answer is important to the philosophy, security, architecture, or governa
 If the answer is merely "because this React component was easier to write this way," Git history is enough.
 
 Put the new entry at the top of the list. Number it with the next integer. Leave every older number where it is. If the new entry replaces an older one, add the superseded footnote to that older entry.
+
+The Constitution is the rulebook. The system specification, the security architecture, and the governance measurement document are the technical codes (D-2026-10-29-03). A later entry wins over them. If a proposed decision conflicts with any of them, warn the Chief Architect before writing the entry. The Chief Architect then decides whether to override. If the override goes ahead, the entry includes the discussion summary and the reasons. The overridden clause gets a footnote: "amended by decision #x".

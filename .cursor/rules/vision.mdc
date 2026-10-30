@@ -6,8 +6,8 @@ alwaysApply: true
 
 # SuperDemocracy vision
 
-Before changing product behavior, architecture, or copy, read `docs/plan/README.md`, `docs/plan/constitution.md`, `docs/plan/north-star.md`, and `docs/plan/governance-principles.md`. The full reference is `docs/plan/master-plan.md`.
+Before changing product behavior, architecture, or copy, read `docs/plan/README.md` and `docs/plan/constitution.md`. The technical codes beside the rulebook are `docs/plan/system-specification.md`, `docs/plan/security-architecture.md`, and `docs/plan/governance-measurement.md`.
 
-Current code defines what exists; it does not outrank the vision documents (authority order in `docs/plan/README.md`). When code and docs disagree, add an entry to `docs/DECISION-LOG.md` instead of silently picking a side. Open questions live in `docs/plan/todo.md`. Do not invent scope, and do not remove built features to match a narrower document.
+Current code defines what exists; it does not outrank the vision documents (authority order in `docs/plan/README.md`). The Constitution is the rulebook and can become outdated. A later `docs/DECISION-LOG.md` entry wins over it and the technical codes after a warning (D-2026-10-29-03). If a proposed decision conflicts with one of them, warn the Chief Architect before recording it. The Chief Architect decides whether to override. If the override goes ahead, the entry holds the discussion summary and the reasons, and the clause is footnoted "amended by decision #x". When code and docs disagree, add an entry to `docs/DECISION-LOG.md` instead of silently picking a side. Open questions are indexed from `docs/plan/todo.md`, which points at the project whiteboard. Do not invent scope, and do not remove built features to match a narrower document.
 
 Member-facing UI: follow `docs/product-language-guide.md` (no blockchain jargon in community-org flows).

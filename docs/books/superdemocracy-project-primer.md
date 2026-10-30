@@ -4,7 +4,7 @@
 
 **Purpose:** Fastest serious introduction to the project for developers, researchers, AI agents, contributors, and organizations evaluating the platform.
 
-> Read this first for the *why*. Read the Master Plan for the current canonical system. Read the full manuscript for the founding intellectual history.
+> Read this first for the *why*. Read the [Constitution](../plan/constitution.md) for the current rules. Read the full manuscript for the founding intellectual history.
 
 ---
 
@@ -249,7 +249,7 @@ The experience can evolve rapidly without silently changing the rules.
 
 Identity also remains separate from governance so a future identity verifier can replace the current mock layer without rewriting the political system.
 
-Raw ballot preservation should remain separate from counting logic so future counting methods can evolve without destroying history.
+Store auditor-visible sealed ballots, separate from the tally (D-2026-10-09-01).
 
 Administrators may administer the process. They must not gain the ability to rewrite votes or tallies.
 
@@ -257,25 +257,11 @@ Administrators may administer the process. They must not gain the ability to rew
 
 ## 10. The Current Engineering Direction
 
-The current local development system uses:
+Exact engineering requirements are in the [system specification](../plan/system-specification.md). That specification, the [Constitution](../plan/constitution.md), and the [security architecture](../plan/security-architecture.md) override this primer.
 
-- Anvil for the local blockchain;
-- Solidity contracts;
-- Foundry tooling;
-- deployment through `cast send` and bytecode automation;
-- Next.js 16;
-- wagmi;
-- viem;
-- MetaMask;
-- contract addresses stored in environment configuration rather than hardcoded frontend values.
+Sign-in does not require a browser wallet (D-2026-09-25-01). An injected wallet may still be used by people who already have one.
 
-Core contracts include the identity layer, organization governance, petitions, and referendums.
-
-Current petition rules require verified membership, verified signatures, thresholds, approval state, rejection state, and explicit referendum-launch conditions.
-
-Future architecture must remain compatible with multiple simultaneous petitions, ranked-choice voting, switchable counting methods, topic-specific delegation, stronger identity, and later privacy/security upgrades.
-
-For exact current engineering requirements, the canonical **Master Plan**, **System Specification**, **Security Architecture**, and **Governance Principles** override this primer.
+Parked future features are not listed here. See [todo.md](../plan/todo.md).
 
 ---
 
@@ -338,7 +324,7 @@ Superdemocracy should not be defended by pretending every founding idea is corre
 
 The full manuscript is the intellectual history. It explains why the project exists and preserves ideas that may later be refined, rejected, or rediscovered.
 
-The Master Plan records the current direction.
+The Constitution records the current direction.
 
 The Decision Log records what changed and why.
 
@@ -371,7 +357,7 @@ Experts should challenge the architecture when the evidence warrants it.
 
 AI agents should not silently change the project's purpose because a different implementation is easier.
 
-The architecture must be allowed to evolve without losing the North Star.
+The architecture must be allowed to evolve without losing the Constitution.
 
 ---
 

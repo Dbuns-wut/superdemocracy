@@ -1,8 +1,8 @@
 # SUPERDEMOCRACY — SYSTEM SPECIFICATION
 
 **Status:** Living engineering specification.  
-**Authority:** below the [Constitution](constitution.md), [principles](governance-principles.md), and [master plan](master-plan.md); above the code. When this document and the code disagree, record it in [../DECISION-LOG.md](../DECISION-LOG.md) and decide — do not assume the code is right.  
-**Current priority:** Connect the frontend to live petition data without breaking the established contract architecture.
+**Authority:** The [Constitution](constitution.md) is the rulebook. This specification is a technical code under it. A later entry in [../DECISION-LOG.md](../DECISION-LOG.md) wins over both after a warning (D-2026-10-29-03). When this document and the code disagree, record it in the decision log and decide — do not assume the code is right.  
+**Current priority:** On the launch checklist, not in this file. See [todo.md](todo.md).
 
 ## 1. Product Model
 Superdemocracy is a governance platform with two broad organization modes:
@@ -51,7 +51,7 @@ Next.js frontend handles:
 - visualizations
 - organization UX
 
-The frontend must never be the security boundary.
+The frontend must never be the security boundary. Rules must never depend on user-interface behavior.
 
 ## 3. Current Contract Architecture
 ### IdentityMock.sol
@@ -100,18 +100,21 @@ Current/future ballot architecture must preserve ranked ballots even when the UI
 - Citizen-initiative flows (petition → approval → launch) are an organization setting, off for orgs that do not allow member initiatives (D-2026-09-09-01).
 
 ## 5. Voting Architecture
-Raw ballots are preserved separately from result calculation.
+Store auditor-visible sealed ballots, separate from the tally (D-2026-10-09-01).
 
 Required principles:
-- store raw ballots
+- store auditor-visible sealed ballots
+- never mix ballot storage with tally calculation
 - never destroy vote history
+- keep identity separate from governance
 - do not put complex tally logic inside `vote()`
+- do not accept a vote outside the explicit referendum state
 - avoid loops over voters
-- emit events
-- support future counting methods
+- emit events for meaningful governance actions
+- preserve storage for future counting methods
 - admins cannot modify votes or tallies
 
-Future methods may include ranked choice, approval, first-past-the-post, Condorcet, quadratic or delegated mechanisms where appropriate. These are capabilities/research directions, not a requirement to enable every method at once.
+Future counting methods are on the parked list. See [todo.md](todo.md). They are research directions, not a requirement to enable every method at once.
 
 ## 6. Education Gate
 Users are required to open or acknowledge the relevant educational information before casting a ballot. This is a core Superdemocracy gate; it is on everywhere by default.
@@ -119,7 +122,7 @@ Users are required to open or acknowledge the relevant educational information b
 - **Governance organizations (on-chain referendums):** `Referendum.acknowledgeEducation()` is required before `vote()`. The contract enforces it independently of the UI.
 - **Community organizations (off-chain):** the gate is a UI gate only — no contract involvement. It is on by default and an org admin may turn it off in the org's settings (D-2026-09-09-05).
 
-The member-facing information tab is called **Perspectives**; it is where the Pros vs Cons layer lives (D-2026-09-09-06).
+The member-facing name is **Perspectives**. Pros vs Cons sits inside the Quick Debrief (D-2026-10-28-01).
 
 The gate is not intended to certify competence or comprehension.
 
@@ -182,20 +185,9 @@ Do not repeatedly retry without identifying the root cause.
 ## 11. Forward Compatibility
 Do not optimize V1 in ways that make future architecture impossible.
 
-Future capabilities include:
-- ranked-choice counting
-- switchable counting methods
-- topic-specific liquid delegation
-- Expert Qualification as the soft default for delegation eligibility
-- immediate delegation revocation
-- multiple simultaneous petitions
-- real identity provider integration
-- privacy-preserving demographics/research data
-- deliberation records
-- prediction/forecasting data
-- AI-assisted evidence and deliberation
+Parked future features are listed outside this repo. See [todo.md](todo.md).
 
 ## 12. Current Engineering Goal
-**Connect the frontend to live petition data** without breaking the contract architecture. `app/petitions/page.tsx` already reads live chain logs; finish and stabilize that path.
+The current goal is on the launch checklist. See [todo.md](todo.md).
 
-Do not expand scope until that path is stable. The tree already contains community orgs, messaging, invites, and encrypted community votes — that surface stays (D-2026-09-09-12). Open items: [todo.md](todo.md).
+The tree already contains community orgs, messaging, invites, and encrypted community votes — that surface stays (D-2026-09-09-12).

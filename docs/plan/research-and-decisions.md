@@ -58,7 +58,7 @@ Superseded by decision-log entry 31, Blockchain Votes Default to Auditor-Visible
 **Why:** The system needs one-person-one-vote/eligibility while preserving political privacy.
 
 ## Decision 011 — Raw Ballots Must Survive
-**Decision:** Preserve raw ballots and separate tally logic.
+**Decision:** Preserve the ballot record and separate tally logic. Storage of that record is auditor-visible sealed ballots (D-2026-10-09-01).
 
 **Why:** Future counting methods can change without destroying the underlying democratic record.
 

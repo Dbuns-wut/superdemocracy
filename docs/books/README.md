@@ -4,7 +4,7 @@ Three reading depths of the Superdemocracy project. Read shortest first.
 
 ## 1. [superdemocracy-project-primer.md](superdemocracy-project-primer.md)
 
-**Use for:** developers, AI agents, researchers, collaborators, and new contributors who need the fastest serious explanation of the project. Read this before the technical Master Plan.
+**Use for:** developers, AI agents, researchers, collaborators, and new contributors who need the fastest serious explanation of the project. Read this before the [Constitution](../plan/constitution.md).
 
 ## 2. [superdemocracy-the-experiment-condensed.md](superdemocracy-the-experiment-condensed.md)
 
@@ -18,6 +18,6 @@ Three reading depths of the Superdemocracy project. Read shortest first.
 
 ## Authority
 
-The manuscript is the project's intellectual foundation and sits at position 4 in the document authority order (Constitution Article XI; see [../plan/README.md](../plan/README.md)). It explains *why* the project exists; it is not a frozen technical specification. Later accepted decisions may refine it, deliberately and on the record.
+The manuscript is the project's intellectual foundation. In the document authority order it sits after the decision log (Constitution Article XI; see [../plan/README.md](../plan/README.md)). It explains *why* the project exists; it is not a frozen technical specification. Later accepted decisions may refine it, deliberately and on the record.
 
 **Chief Architect:** Dustin Murray
