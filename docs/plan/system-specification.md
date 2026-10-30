@@ -1,7 +1,7 @@
 # SUPERDEMOCRACY — SYSTEM SPECIFICATION
 
 **Status:** Living engineering specification.  
-**Authority:** The [Constitution](constitution.md), [principles](governance-principles.md), [north star](north-star.md), and [master plan](master-plan.md) are the starting documents. A later entry in [../DECISION-LOG.md](../DECISION-LOG.md) wins over them after a warning (D-2026-10-29-02). When this document and the code disagree, record it in the decision log and decide — do not assume the code is right.  
+**Authority:** The [Constitution](constitution.md) is the rulebook. This specification is a technical code under it. A later entry in [../DECISION-LOG.md](../DECISION-LOG.md) wins over both after a warning (D-2026-10-29-03). When this document and the code disagree, record it in the decision log and decide — do not assume the code is right.  
 **Current priority:** On the launch checklist, not in this file. See [todo.md](todo.md).
 
 ## 1. Product Model
@@ -51,7 +51,7 @@ Next.js frontend handles:
 - visualizations
 - organization UX
 
-The frontend must never be the security boundary.
+The frontend must never be the security boundary. Rules must never depend on user-interface behavior.
 
 ## 3. Current Contract Architecture
 ### IdentityMock.sol
@@ -104,11 +104,14 @@ Store auditor-visible sealed ballots, separate from the tally (D-2026-10-09-01).
 
 Required principles:
 - store auditor-visible sealed ballots
+- never mix ballot storage with tally calculation
 - never destroy vote history
+- keep identity separate from governance
 - do not put complex tally logic inside `vote()`
+- do not accept a vote outside the explicit referendum state
 - avoid loops over voters
-- emit events
-- support future counting methods
+- emit events for meaningful governance actions
+- preserve storage for future counting methods
 - admins cannot modify votes or tallies
 
 Future counting methods are on the parked list. See [todo.md](todo.md). They are research directions, not a requirement to enable every method at once.

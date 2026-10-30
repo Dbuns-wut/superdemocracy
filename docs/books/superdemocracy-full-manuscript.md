@@ -10,7 +10,7 @@
 
 Copyright 2022 by Dustin Murray. All rights reserved.
 
-This repository edition is maintained as the full founding manuscript and should be read as intellectual history as well as project context. Current technical and security requirements live in the canonical Master Plan and related specifications.
+This repository edition is maintained as the full founding manuscript and should be read as intellectual history as well as project context. Current rules live in the Constitution. Technical and security requirements live in the system specification and the security architecture.
 
 ---
 

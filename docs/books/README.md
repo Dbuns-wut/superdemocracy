@@ -4,7 +4,7 @@ Three reading depths of the Superdemocracy project. Read shortest first.
 
 ## 1. [superdemocracy-project-primer.md](superdemocracy-project-primer.md)
 
-**Use for:** developers, AI agents, researchers, collaborators, and new contributors who need the fastest serious explanation of the project. Read this before the technical Master Plan.
+**Use for:** developers, AI agents, researchers, collaborators, and new contributors who need the fastest serious explanation of the project. Read this before the [Constitution](../plan/constitution.md).
 
 ## 2. [superdemocracy-the-experiment-condensed.md](superdemocracy-the-experiment-condensed.md)
 

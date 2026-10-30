@@ -4,7 +4,7 @@
 
 **Purpose:** Fastest serious introduction to the project for developers, researchers, AI agents, contributors, and organizations evaluating the platform.
 
-> Read this first for the *why*. Read the Master Plan for the current canonical system. Read the full manuscript for the founding intellectual history.
+> Read this first for the *why*. Read the [Constitution](../plan/constitution.md) for the current rules. Read the full manuscript for the founding intellectual history.
 
 ---
 
@@ -257,7 +257,7 @@ Administrators may administer the process. They must not gain the ability to rew
 
 ## 10. The Current Engineering Direction
 
-Exact engineering requirements are in the [system specification](../plan/system-specification.md). That specification, the [master plan](../plan/master-plan.md), the [security architecture](../plan/security-architecture.md), and the [governance principles](../plan/governance-principles.md) override this primer.
+Exact engineering requirements are in the [system specification](../plan/system-specification.md). That specification, the [Constitution](../plan/constitution.md), and the [security architecture](../plan/security-architecture.md) override this primer.
 
 Sign-in does not require a browser wallet (D-2026-09-25-01). An injected wallet may still be used by people who already have one.
 
@@ -324,7 +324,7 @@ Superdemocracy should not be defended by pretending every founding idea is corre
 
 The full manuscript is the intellectual history. It explains why the project exists and preserves ideas that may later be refined, rejected, or rediscovered.
 
-The Master Plan records the current direction.
+The Constitution records the current direction.
 
 The Decision Log records what changed and why.
 
@@ -357,7 +357,7 @@ Experts should challenge the architecture when the evidence warrants it.
 
 AI agents should not silently change the project's purpose because a different implementation is easier.
 
-The architecture must be allowed to evolve without losing the North Star.
+The architecture must be allowed to evolve without losing the Constitution.
 
 ---
 

@@ -1,9 +1,11 @@
 # SUPERDEMOCRACY PROJECT CONSTITUTION
 
-**Status:** Approved for repository handoff; canonical when committed to the authoritative repository  
-**Version:** 1.0  
-**Date:** 2026-09-08  
+**Status:** The project rulebook  
+**Version:** 1.1  
+**Date:** 2026-10-29  
 **Chief Architect:** Dustin Murray
+
+The North Star, the governance principles, and the Master Plan were folded into this Constitution. Those files were removed (decision 41, D-2026-10-29-03).
 
 ---
 
@@ -91,29 +93,62 @@ Superdemocracy is not a claim that one final form of democracy has been discover
 
 Governance methods may be tested, measured, compared, improved, replaced, or abandoned as evidence and experience develop.
 
+## Section 7. People Remain Sovereign
+
+Political authority begins with the people governed by a decision. Representatives, administrators, experts, delegates, software, and artificial intelligence receive authority. They do not own it.
+
+**People remain sovereign. Technology improves the machinery.**
+
+Elected officials may remain part of an organization's system. Participants gain practical tools to initiate, approve, reject, review, and reverse decisions without waiting for the next election cycle.
+
+## Section 8. The Soft Default Decision Process
+
+The platform has a sensible soft default. Advanced mechanisms stay optional. The default order is:
+
+1. A problem emerges.
+2. Choose a process that fits the complexity of the question.
+3. Make the issue easy to understand.
+4. Expose evidence, sources, disagreement, and uncertainty.
+5. Deliberate when useful.
+6. Choose between For/Against or several legitimate options.
+7. Vote directly, or delegate by topic when delegation is enabled.
+8. Implement the decision.
+9. Measure the governance experience. Measure policy outcomes separately when a decision has defined goals.
+10. Learn, revise, or reverse when appropriate.
+
+## Section 9. The Method Fits the Question
+
+There is no single voting method for every problem.
+
+A binary question may use For/Against. A question with several viable solutions uses multiple options, and ranked choice is the preferred counting method for those (Section 5). A complex question may use deliberation. A specialized question may use expert information or delegation. A foreseeable emergency uses a protocol decided before the crisis (Article VII).
+
+The rules of the method in use stay explicit and auditable.
+
 ---
 
 # ARTICLE III — INFORMATION AND EDUCATION
 
-## Section 1. Information Should Be Easy to Use
+## Section 1. Three Information Levels
 
-The default information experience should help a voter quickly understand:
+Voting should be easy. Becoming informed should be ridiculously easy.
 
-- what is being decided;
-- the meaningful options;
-- principal benefits, costs, risks, and tradeoffs;
-- what is known;
-- what is disputed;
-- what remains uncertain;
-- and where the underlying sources can be inspected.
+The member-facing name is Perspectives. The default information experience has three levels. Pros vs Cons sits inside the Quick Debrief (D-2026-10-28-01).
 
-For genuine For/Against questions, a clear Pros-versus-Cons presentation is the preferred default.
+1. **Quick Debrief.** What is being decided, why it matters, what is known, what is disputed, what remains uncertain, and a Pros vs Cons table for a binary question, or benefits, costs, and risks for each of several options.
+2. **Evidence.** Claims, evidence for and against, expert statements, statistics, studies, and relevant history.
+3. **Sources.** Legislation, government reports, court decisions, academic papers, accredited reference works, primary sources, datasets, and original documents.
+
+The first layer stays simple. Depth stays available. Each of several legitimate options receives comparable treatment.
 
 ## Section 2. AI May Assist Information Work
 
 Artificial intelligence may assist with gathering, organizing, summarizing, comparing, translating, explaining, and presenting relevant information and source material.
 
 AI-generated material does not become official truth merely because an AI produced it. Important claims should remain traceable to their sources, and meaningful uncertainty or disagreement should not be hidden.
+
+## Section 3. Information Must Stay Traceable
+
+The information layer reduces the cost of understanding without hiding where understanding came from. Uncertainty, disagreement, and source quality stay visible.
 
 ---
 
@@ -148,6 +183,12 @@ Organizations may choose not to use Expert Qualification.
 A qualified or otherwise eligible delegate may accumulate substantial influence when participants voluntarily choose that person.
 
 Superdemocracy does not treat popularity of a competent delegate as a problem by itself. The essential protection is immediate revocability of delegated authority.
+
+## Section 5. Liquid Delegation Is Not the First-Version Default
+
+Delegation is a later capability. It is not on in the first version of the platform. When it is enabled, Sections 1 through 4 of this Article apply.
+
+**Permanent historical decisions. Impermanent political authority.**
 
 ---
 
@@ -196,6 +237,12 @@ Those metrics are case-specific and belong to the policy or organization using t
 
 They are separate from measuring whether the democratic decision process itself is trusted, satisfying, inclusive, informative, and capable of reducing polarization.
 
+## Section 5. Experiment at a Small Scale First
+
+A decision that can be made well at a smaller scale is tried there before it is treated as a wider standard. Families, neighborhoods, schools, companies, unions, community groups, and municipalities are legitimate places to test a process.
+
+Failure should be contained. Staged adoption, a clear review point, and a lawful way to reverse a process are preferred. A process that works may be copied because it works. A process that fails is changed or removed. The project does not force one political system on every organization.
+
 ---
 
 # ARTICLE VI — SECURITY, CONFIDENTIALITY, AND VERIFICATION
@@ -231,6 +278,25 @@ Superdemocracy shall work toward independently verifiable governance processes.
 Blockchain, encryption, digital identity, or any other technology may be used where useful, but the presence of a technology shall not by itself be treated as proof that an election is secure.
 
 Detailed security requirements belong in the Security Architecture rather than this Constitution.
+
+## Section 5. Identity, Ballot, Tally, and Research Stay Separate
+
+The system separates:
+
+1. **Identity** — whether a person is eligible.
+2. **Ballot** — the political choice. When auditor visibility is on, the appointed counter may see it.
+3. **Tally** — the public result.
+4. **Research data** — only aggregated information legitimately needed for learning.
+
+Research and analytics must not create an extra public or recoverable identity-to-vote record beyond the mode the organization chose. If sensitive data cannot be collected safely, it is not collected.
+
+Past ballots, decisions, delegations, approvals, and rule changes are not quietly rewritten because political authority later changes hands. That record is separate from showing the public how an identifiable person voted.
+
+## Section 6. Do Not Trust the Operator
+
+The security standard is: **Don't trust us. Verify us.**
+
+Trust does not depend on the founder, an administrator, a software company, a cloud provider, or one department behaving perfectly. The direction is public rules, reviewable code where appropriate, reproducible deployments, independent review, and a design in which compromise of one component does not automatically compromise the decision. The detailed program is in the security architecture.
 
 ---
 
@@ -270,6 +336,12 @@ An AI system shall not create, enlarge, or perpetuate its own political authorit
 
 Human-created rules and democratic mechanisms must remain able to withdraw authority delegated to AI.
 
+## Section 3. The Organization Decides Whether AI May Hold Delegated Authority
+
+Each organization decides for itself whether artificial intelligence may ever receive delegated political authority. If it permits that, Section 2 still applies. Direct democratic restraints do not disappear as more advanced tools are added.
+
+---
+
 # ARTICLE IX — PROJECT STEWARDSHIP
 
 ## Section 1. Chief Architect
@@ -302,6 +374,16 @@ While the project remains founder-led, the Chief Architect may amend the canonic
 
 Meaningful changes to governance philosophy, security architecture, or major system design should include a concise record of what changed, when, and why.
 
+A major architecture change records:
+
+1. What is changing.
+2. Why it is changing.
+3. The evidence supporting the change.
+4. The assumptions being made.
+5. What would cause the decision to be revisited.
+
+Do not silently turn a hypothesis from the founding manuscript into a permanent technical requirement.
+
 Minor implementation changes do not require such a record.
 
 ## Section 2. Changes to Founding Principles Must Be Explicit
@@ -320,16 +402,18 @@ GitHub commits, issues, pull-request reviews, and comments remain useful impleme
 
 # ARTICLE XI — DOCUMENT AUTHORITY
 
+> Amended by decision #41. The earlier text of this article listed the Constitution, the governance principles, the North Star, and the Master Plan as four starting documents. Those three companions were folded into this Constitution and removed (D-2026-10-29-03).
+
 Where project documents conflict, the following order of authority applies:
 
-1. **Decision Log** — a later accepted entry wins over the starting documents, after a warning and an explicit decision to override
-2. **Starting documents** — this Constitution, the Governance Principles, the North Star, and the Master Plan. They can become outdated
-3. **Current System Specification**, security architecture, and governance measurement
+1. **Decision Log** — a later accepted entry wins over this Constitution and the technical codes, after a warning and an explicit decision to override
+2. **This Constitution** — the rulebook. It can become outdated
+3. **Technical codes** — the system specification, the security architecture, and governance measurement
 4. **Founding Superdemocracy Manuscript**
 5. **Current implementation and technical documentation**
 6. **Historical prompts, chats, drafts, and superseded documents**
 
-Before a decision that conflicts with a starting document is recorded, the Chief Architect is warned and decides whether to override it. If the override goes ahead, the decision log entry holds the discussion summary and the reasons. The overridden clause is footnoted "amended by decision #x" (D-2026-10-29-02).
+Before a decision that conflicts with this Constitution or a technical code is recorded, the Chief Architect is warned and decides whether to override it. If the override goes ahead, the decision log entry holds the discussion summary and the reasons. The overridden clause is footnoted "amended by decision #x" (D-2026-10-29-02, D-2026-10-29-03).
 
 The founding manuscript remains the project's intellectual foundation and an important record of the research and reasoning that produced Superdemocracy.
 
@@ -356,6 +440,37 @@ Organizations remain free to configure or decline the platform according to thei
 Blockchain, artificial intelligence, cryptographic systems, identity systems, frontend frameworks, and other implementation technologies may change as better tools emerge.
 
 The project's governing purpose is more durable than any current technology stack.
+
+---
+
+# ARTICLE XIII — ARCHITECTURE
+
+## Section 1. Three Layers
+
+Keep three layers separate: **Rules, then Data and Evidence, then Experience.**
+
+Smart contracts enforce governance rules. Content and evidence live outside the contracts. The frontend presents the experience. Rules must never depend on user-interface behavior. The contract guardrails are in the system specification.
+
+## Section 2. Protect the Architecture From Feature Drift
+
+A new feature must not silently weaken an earlier protection. In particular:
+
+- discussion tools do not become the voting rules;
+- the frontend is not the source of legal eligibility;
+- identity is not a public vote-history database;
+- analytics do not undermine the ballot mode the organization chose;
+- an AI summary does not erase source provenance;
+- a delegation change does not destroy a historical ballot;
+- an administrator does not gain power to alter votes or tallies;
+- a new counting method does not require destruction of the ballot record (D-2026-10-09-01).
+
+## Section 3. Simplicity for the Participant
+
+The ordinary participant does not need to understand blockchains, voting theory, cryptographic proofs, or smart-contract architecture to cast a legitimate vote. The experience should feel obvious and calm. Complexity stays where experts can inspect it.
+
+## Section 4. One-Sentence Test
+
+Before a major feature is added, ask whether it makes collective decisions more informed, legitimate, accountable, secure, private, adaptable, or easier to take part in, without quietly taking sovereignty away. If it does not, it does not belong.
 
 ---
 

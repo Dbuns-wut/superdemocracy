@@ -2,9 +2,9 @@
 
 ## Vision
 
-Read [docs/plan/README.md](docs/plan/README.md) and follow its read order — [constitution.md](docs/plan/constitution.md), [north-star.md](docs/plan/north-star.md), [governance-principles.md](docs/plan/governance-principles.md) at minimum — before product or architecture work. [docs/plan/master-plan.md](docs/plan/master-plan.md) is the full working reference.
+Read [docs/plan/README.md](docs/plan/README.md) and [docs/plan/constitution.md](docs/plan/constitution.md) before product or architecture work. The system specification, security architecture, and governance measurement doc are the technical codes beside the rulebook.
 
-Code is what exists. The Constitution, governance principles, North Star, and Master Plan are the starting documents. Authority order is in [docs/plan/README.md](docs/plan/README.md); code is last. A later entry in [docs/DECISION-LOG.md](docs/DECISION-LOG.md) wins over those starting documents (D-2026-10-29-02). If a proposed decision conflicts with any of them, warn the Chief Architect before recording it. The Chief Architect decides whether to override. If the override goes ahead, the entry holds the discussion summary and the reasons, and the clause is footnoted "amended by decision #x". Open items: [docs/plan/todo.md](docs/plan/todo.md) (pointer to the project whiteboard).
+Code is what exists. The Constitution is the rulebook. Authority order is in [docs/plan/README.md](docs/plan/README.md); code is last. A later entry in [docs/DECISION-LOG.md](docs/DECISION-LOG.md) wins over the Constitution and the technical codes after a warning (D-2026-10-29-03). If a proposed decision conflicts with one of them, warn the Chief Architect before recording it. The Chief Architect decides whether to override. If the override goes ahead, the entry holds the discussion summary and the reasons, and the clause is footnoted "amended by decision #x". Open items: [docs/plan/todo.md](docs/plan/todo.md) (pointer to the project whiteboard).
 
 ## Repo layout
 

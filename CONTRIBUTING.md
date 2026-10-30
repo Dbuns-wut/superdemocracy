@@ -4,11 +4,11 @@ Local source of truth is this GitHub clone. Work on a branch, open a pull reques
 
 ## Before changing anything
 
-1. Read [docs/plan/README.md](docs/plan/README.md) and follow its read order — at minimum the [Constitution](docs/plan/constitution.md), [north star](docs/plan/north-star.md), and [governance principles](docs/plan/governance-principles.md).
+1. Read [docs/plan/README.md](docs/plan/README.md) and the [Constitution](docs/plan/constitution.md).
 2. Read [docs/plan/system-specification.md](docs/plan/system-specification.md), and [docs/plan/security-architecture.md](docs/plan/security-architecture.md) for security-sensitive work.
 3. Check the current repository state before proposing edits.
 
-Code is what exists; it does not outrank the vision documents. The Constitution, governance principles, North Star, and Master Plan are the starting documents. A later entry in [docs/DECISION-LOG.md](docs/DECISION-LOG.md) wins over them (D-2026-10-29-02). If a proposed decision conflicts with any of them, warn the Chief Architect before recording it. The Chief Architect decides whether to override. If the override goes ahead, the entry holds the discussion summary and the reasons, and the clause is footnoted "amended by decision #x". When code and a document disagree, add a log entry — do not silently pick a side, and do not remove a built feature to match a narrower document.
+Code is what exists; it does not outrank the vision documents. The Constitution is the rulebook. A later entry in [docs/DECISION-LOG.md](docs/DECISION-LOG.md) wins over it and the technical codes after a warning (D-2026-10-29-03). If a proposed decision conflicts with one of them, warn the Chief Architect before recording it. The Chief Architect decides whether to override. If the override goes ahead, the entry holds the discussion summary and the reasons, and the clause is footnoted "amended by decision #x". When code and a document disagree, add a log entry — do not silently pick a side, and do not remove a built feature to match a narrower document.
 
 - Do not invent product behavior, scope, or copy. Ask first.
 - Member-facing UI should not expose blockchain jargon. See [docs/product-language-guide.md](docs/product-language-guide.md).

@@ -37,8 +37,23 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 # DECISIONS
 
+## 41. One Rulebook, and the Extra Plans Are Removed (D-2026-10-29-03)
+**Date:** 2026-10-29
+
+**Decision:** The North Star, the governance principles, and the Master Plan are folded into the Constitution, and those three files are deleted. The Constitution is the rulebook. The system specification, the security architecture, and the governance measurement document stay as separate technical codes. Contract guardrails that lived only in the Master Plan now live in the system specification. The decision log, the research file, the books, the product language guide, the data note, and the whiteboard pointer stay as they are.
+
+**Why:** Decision 40 left the merge for a later pass and said those documents would not be deleted yet. On 2026-10-29 the Chief Architect confirmed the set and said not to leave the old plans as pointer files. They are clutter. The discussion was the list of what each planning document was for, then the proposal of one numbered rulebook plus three technical codes, then the instruction to fold the plans in and remove them.
+
+**Status:** Accepted. Completes the merge that decision 40 deferred. Article XI is footnoted "amended by decision #41".
+
+**Source:** Chief Architect, 2026-10-29.
+
+---
+
 ## 40. Constitution and Principles Use the Same Override Rule (D-2026-10-29-02)
 **Date:** 2026-10-29
+
+> The merge and deletion this entry deferred are done by 41. One Rulebook, and the Extra Plans Are Removed (D-2026-10-29-03).
 
 **Decision:** The Constitution and the governance principles are treated the same as the North Star and the Master Plan. They are starting documents. They can become outdated. A later decision log entry wins over any of them. Before recording a decision that conflicts with one of them, warn the Chief Architect. The Chief Architect then decides whether to override it. If the override goes ahead, that decision log entry holds the discussion summary and the reasons. When the starting documents are numbered as a codebook, the overridden clause gets a footnote: "amended by decision #x".
 
@@ -654,4 +669,4 @@ If the answer is merely "because this React component was easier to write this w
 
 Put the new entry at the top of the list. Number it with the next integer. Leave every older number where it is. If the new entry replaces an older one, add the superseded footnote to that older entry.
 
-The Constitution, the governance principles, the North Star, and the Master Plan are the starting documents (D-2026-10-29-02). A later entry wins over them. If a proposed decision conflicts with any of them, warn the Chief Architect before writing the entry. The Chief Architect then decides whether to override. If the override goes ahead, the entry includes the discussion summary and the reasons. The overridden clause gets a footnote: "amended by decision #x".
+The Constitution is the rulebook. The system specification, the security architecture, and the governance measurement document are the technical codes (D-2026-10-29-03). A later entry wins over them. If a proposed decision conflicts with any of them, warn the Chief Architect before writing the entry. The Chief Architect then decides whether to override. If the override goes ahead, the entry includes the discussion summary and the reasons. The overridden clause gets a footnote: "amended by decision #x".
