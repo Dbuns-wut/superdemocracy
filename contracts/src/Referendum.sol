@@ -32,6 +32,8 @@ contract Referendum {
     mapping(address => bool) public hasAcknowledgedEducation;
     uint256 public totalVotes;
     mapping(uint256 => uint256) public optionVotes;
+    /// @notice Ballots the counter could not open, like spoiled paper ballots. Part of the public tally.
+    uint256 public rejectedBallots;
 
     constructor(
         string memory _title,
@@ -84,6 +86,8 @@ contract Referendum {
     }
 
     /// @notice Appointed counter only, and only when this referendum kept a person-to-choice record.
+    /// `msg.sender` is not authenticated in an eth_call and calldata is public, so the sealing key,
+    /// not this check, is what keeps the choice from the public.
     function auditorBallot(address voter) external view returns (bytes memory) {
         if (!auditorVisible) revert BallotsAreSecret();
         if (msg.sender != IBallotPolicy(organization).ballotAuditor()) revert NotBallotCounter();
@@ -96,15 +100,17 @@ contract Referendum {
     }
 
     /// @notice Replace the public option totals. Does not accept voter identities.
-    function publishTally(uint256[] calldata counts) external {
+    /// `rejected` counts ballots that could not be opened, so one malformed ballot cannot block the count.
+    function publishTally(uint256[] calldata counts, uint256 rejected) external {
         if (msg.sender != IBallotPolicy(organization).ballotAuditor()) revert NotBallotCounter();
         require(counts.length == options.length, "Invalid tally");
-        uint256 sum;
+        uint256 sum = rejected;
         for (uint256 i = 0; i < counts.length; i++) {
             optionVotes[i] = counts[i];
             sum += counts[i];
         }
         require(sum == totalVotes, "Tally does not match ballots cast");
+        rejectedBallots = rejected;
         emit TallyPublished(msg.sender);
     }
 
