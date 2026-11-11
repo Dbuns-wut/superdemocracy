@@ -25,6 +25,23 @@ const EDUCATION_OFF_WARNING: SettingWarning = {
   confirmLabel: "Turn it off",
 }
 
+const PETITIONS_ON_WARNING: SettingWarning = {
+  title: "Allow member petitions?",
+  affects:
+    "Members will be able to start a petition. After enough current members sign, you can approve it and launch a referendum the organization votes on.",
+  pros: [
+    "Members can put a question in front of the organization.",
+    "The administrator still approves it before it becomes a vote.",
+  ],
+  cons: [
+    "A petition can become a binding question, not only a discussion.",
+    "Signatures stay linked to the member. The appointed counter can see who signed.",
+  ],
+  confirmLabel: "Allow petitions",
+}
+
+type PendingChange = { warning: SettingWarning; apply: () => void }
+
 export function OrgSettingsPanel({
   orgId,
   governance,
@@ -43,7 +60,7 @@ export function OrgSettingsPanel({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
-  const [pendingWarning, setPendingWarning] = useState<SettingWarning | null>(null)
+  const [pending, setPending] = useState<PendingChange | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -82,6 +99,7 @@ export function OrgSettingsPanel({
     }
     const payload = {
       citizenInitiativesEnabled: settings.citizenInitiativesEnabled,
+      petitionThreshold: settings.petitionThreshold,
       educationBeforeVote: governance ? true : settings.educationBeforeVote,
       joinRequirements: settings.joinRequirements,
     }
@@ -128,9 +146,8 @@ export function OrgSettingsPanel({
       <div className="rounded border border-zinc-200 bg-zinc-50 p-6">
         <h3 className="text-lg">Citizen initiatives</h3>
         <p className="mt-1 text-sm text-zinc-600">
-          Members can start a petition that goes to approval and then a vote. Off unless this
-          organization turns it on. The petition flow itself is not available yet; this records
-          the organization&apos;s choice for when it is.
+          Members can start a petition. After enough current members have signed, an administrator
+          can approve it and launch a referendum. Off unless this organization turns it on.
         </p>
         <label className="mt-3 flex items-start gap-2 text-sm text-zinc-800">
           <input
@@ -138,12 +155,40 @@ export function OrgSettingsPanel({
             className="mt-0.5"
             disabled={!isAdmin}
             checked={settings.citizenInitiativesEnabled}
-            onChange={(e) =>
-              setSettings((prev) => ({ ...prev, citizenInitiativesEnabled: e.target.checked }))
-            }
+            onChange={(e) => {
+              if (e.target.checked) {
+                setPending({
+                  warning: PETITIONS_ON_WARNING,
+                  apply: () =>
+                    setSettings((prev) => ({ ...prev, citizenInitiativesEnabled: true })),
+                })
+                return
+              }
+              setSettings((prev) => ({ ...prev, citizenInitiativesEnabled: false }))
+            }}
           />
           <span>Allow member-initiated petitions</span>
         </label>
+        {settings.citizenInitiativesEnabled && (
+          <label className="mt-3 block text-sm text-zinc-800">
+            <span className="mb-1 block">Signatures required before approval</span>
+            <input
+              type="number"
+              min={1}
+              max={100000}
+              disabled={!isAdmin}
+              value={settings.petitionThreshold}
+              onChange={(e) => {
+                const next = Number(e.target.value)
+                setSettings((prev) => ({
+                  ...prev,
+                  petitionThreshold: Number.isInteger(next) && next >= 1 ? next : prev.petitionThreshold,
+                }))
+              }}
+              className="w-28 rounded border border-zinc-200 bg-white p-2 text-zinc-900"
+            />
+          </label>
+        )}
       </div>
 
       <div className="rounded border border-zinc-200 bg-zinc-50 p-6">
@@ -161,7 +206,11 @@ export function OrgSettingsPanel({
                 checked={settings.educationBeforeVote}
                 onChange={(e) => {
                   if (!e.target.checked) {
-                    setPendingWarning(EDUCATION_OFF_WARNING)
+                    setPending({
+                      warning: EDUCATION_OFF_WARNING,
+                      apply: () =>
+                        setSettings((prev) => ({ ...prev, educationBeforeVote: false })),
+                    })
                     return
                   }
                   setSettings((prev) => ({ ...prev, educationBeforeVote: true }))
@@ -299,11 +348,11 @@ export function OrgSettingsPanel({
       )}
 
       <SettingWarningModal
-        warning={pendingWarning}
-        onCancel={() => setPendingWarning(null)}
+        warning={pending?.warning ?? null}
+        onCancel={() => setPending(null)}
         onConfirm={() => {
-          setSettings((prev) => ({ ...prev, educationBeforeVote: false }))
-          setPendingWarning(null)
+          pending?.apply()
+          setPending(null)
         }}
       />
     </div>

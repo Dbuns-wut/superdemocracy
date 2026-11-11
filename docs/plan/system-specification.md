@@ -9,7 +9,7 @@
 ## 1. Product Model
 Superdemocracy is a governance platform with two broad organization kinds:
 - **Community Organizations:** polls, votes, messageboard, events, and membership for groups that run themselves.
-- **Governance Organizations:** the same voting tools with stricter defaults. Education Before Vote is locked on. Petitions and referendums for this kind are deferred (decision #43) and will build on the same vote primitives.
+- **Governance Organizations:** the same voting tools with stricter defaults. Education Before Vote is locked on. Questions this kind creates are referendums. Either kind may turn on member petitions (decision #44).
 
 Both kinds are the same record type with a `kind` field. The distinction is in defaults and which settings an administrator may change.
 
@@ -62,7 +62,8 @@ Identity remains separate from governance so the verification mechanism can late
 - The creator is the administrator. The administrator may appoint one counter (`auditorId`) who is not the administrator.
 
 ### Votes
-- `lib/votes/store.ts`: `CommunityVote { id, orgId, title, description, options, startTime, endTime, eligibleVoters, allowVoteChange, auditorVisible, status, verificationApprovals, createdAt }`.
+- `lib/votes/store.ts`: `CommunityVote { id, orgId, title, description, options, startTime, endTime, eligibleVoters, allowVoteChange, auditorVisible, kind, petitionId?, status, verificationApprovals, createdAt }`. `kind` is `vote` or `referendum`. A governance organization always creates a referendum. A petition launch does too.
+- `lib/petitions/store.ts`: a petition is started by a member, signed by current members, and approved or rejected by the administrator. Leaving the organization drops a signer from the count and keeps the row. The appointed counter can see who signed. Launching an approved petition creates the referendum.
 - Ballots are encrypted at rest (`lib/ballot-crypto.ts`, AES-256-GCM under `BALLOT_ENCRYPTION_KEY`). The choice is never stored in plaintext.
 - `castCommunityBallot` requires an active vote and an eligible, signed-in participant.
 - `getCommunityVotePublic(voteId, viewerId)` returns the tally and, for the viewer only, `mySubmission`.
@@ -80,13 +81,13 @@ Postgres when `DATABASE_URL` is set (`lib/db.ts`, `scripts/migrate.ts`); otherwi
 
 ## 4. Hard Governance Rules
 - Only signed-in members of an organization may cast a ballot or answer a poll.
-- Only the organization administrator may create a vote, edit its education, open or close verification, or change organization settings.
+- Only the organization administrator may create a vote, edit its education, open or close verification, lock a result, decide a petition, or change organization settings.
 - The administrator cannot read ballots.
 - The appointed counter can read ballots only while verification is open.
 - A ballot cannot be cast outside the vote's start and end time or while the vote is not `active`.
 - Education Before Vote is on by default and locked on for Governance organizations.
 - Changing a setting that affects security, integrity, how voters see information, or the vote itself shows a warning with what is affected, the pros and cons, and a confirmation (decision #43, entry 15).
-- Petition rules from the previous architecture (threshold, re-verification, active monitoring of signer eligibility — D-2026-09-09-08) carry forward unchanged when petitions return.
+- A petition can be approved only after the organization's signature threshold is met by current members. A signer who leaves is dropped from that count. The signature row is kept (D-2026-09-09-08, decision #44).
 
 ## 5. Voting Architecture
 Store auditor-visible sealed ballots, separate from the tally (D-2026-10-09-01).

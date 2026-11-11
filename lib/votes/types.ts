@@ -2,10 +2,10 @@ export type VoteStatus = "draft" | "active" | "closed" | "verification" | "certi
 
 /** History of window open/close (admin lifecycle only — not ballot reveal). */
 export type VerificationApproval = {
-  /** Account id of the admin who opened or closed the window. */
+  /** Account id of the admin who opened, closed, or locked the window. */
   signer: string
   approvedAt: number
-  action: "open" | "close"
+  action: "open" | "close" | "lock"
 }
 
 export type CommunityVote = {
@@ -20,6 +20,13 @@ export type CommunityVote = {
   allowVoteChange: boolean
   /** Snapshotted from the organization at creation. Missing on older votes means on. */
   auditorVisible?: boolean
+  /**
+   * A referendum is the binding question, including one launched from a petition.
+   * Missing on older records means an ordinary vote.
+   */
+  kind?: "vote" | "referendum"
+  /** Set when this referendum was launched from a petition. */
+  petitionId?: string
   status: VoteStatus
   verificationApprovals: VerificationApproval[]
   createdAt: number

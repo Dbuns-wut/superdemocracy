@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { normalizeOrgId } from "@/lib/org-id";
 import type { CommunityOrg } from "@/lib/community-orgs/types";
 import { OrgItemShareButton } from "@/components/OrgItemShareButton";
+import { OrgPetitionsPanel } from "@/components/OrgPetitionsPanel";
 import { OrgSettingsPanel } from "@/components/OrgSettingsPanel";
 import { PerspectivesPanel } from "@/components/PerspectivesPanel";
 import { PersonPicker } from "@/components/PersonPicker";
@@ -69,7 +70,9 @@ export default function OrgPage() {
 
   const [mounted, setMounted] = useState(false);
   const [applications, setApplications] = useState<PendingApplicationRow[]>([]);
-  const [view, setView] = useState<"home" | "members" | "socials" | "polls" | "votes" | "settings">("home");
+  const [view, setView] = useState<
+    "home" | "members" | "socials" | "polls" | "votes" | "petitions" | "settings"
+  >("home");
   const [membersTab, setMembersTab] = useState<"all" | "pending" | "manage">("all");
   const [membersSearch, setMembersSearch] = useState("");
   const [members, setMembers] = useState<string[]>([]);
@@ -136,6 +139,8 @@ export default function OrgPage() {
       endTime: number;
       eligibleVoters: string[];
       allowVoteChange: boolean;
+      kind?: "vote" | "referendum";
+      verificationApprovals?: { action: string }[];
       status: string;
       createdAt: number;
       tally: number[] | null;
@@ -1065,7 +1070,7 @@ export default function OrgPage() {
     }
   };
 
-  const handleVerificationWindow = async (voteId: string, action: "open" | "close") => {
+  const handleVerificationWindow = async (voteId: string, action: "open" | "close" | "lock") => {
     if (!userId) return;
     try {
       const res = await fetch(`/api/votes/${encodeURIComponent(voteId)}/verification`, {
@@ -1081,10 +1086,24 @@ export default function OrgPage() {
       }
       if (data.vote) {
         setCommunityVotes((prev) =>
-          prev.map((v) => (v.id === voteId ? { ...v, status: data.vote.status } : v))
+          prev.map((v) =>
+            v.id === voteId
+              ? {
+                  ...v,
+                  status: data.vote.status,
+                  verificationApprovals: data.vote.verificationApprovals ?? v.verificationApprovals,
+                }
+              : v
+          )
         );
       }
-      setVoteStatus(action === "open" ? "Verification window open." : "Verification window closed.");
+      setVoteStatus(
+        action === "open"
+          ? "Verification window open."
+          : action === "close"
+            ? "Verification window closed."
+            : "Result locked."
+      );
     } catch {
       setVoteStatus("Could not update verification. Check your connection and try again.");
     }
@@ -1204,7 +1223,7 @@ export default function OrgPage() {
     setVoteStart("");
     setVoteEnd("");
     setAllowVoteChange(false);
-    setVoteStatus("Vote created.");
+    setVoteStatus(isGovernance ? "Referendum created." : "Vote created.");
     setShowCreateVoteForm(false);
   };
 
@@ -1369,13 +1388,13 @@ export default function OrgPage() {
             }}
             className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
           >
-            Create vote
+            {isGovernance ? "Create referendum" : "Create vote"}
           </button>
         </div>
       )}
       {showCreateVoteForm && (
         <div className="border border-zinc-200 p-6 rounded mb-4">
-          <h2 className="text-xl mb-3">Create Community Vote</h2>
+          <h2 className="text-xl mb-3">{isGovernance ? "Create referendum" : "Create vote"}</h2>
           <input
             type="text"
             value={voteTitle}
@@ -1474,6 +1493,9 @@ export default function OrgPage() {
             <div className="flex justify-between gap-2 items-start">
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-gray-400">{new Date(vote.createdAt).toLocaleString()}</p>
+                {(isGovernance || vote.kind === "referendum") && (
+                  <p className="mt-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Referendum</p>
+                )}
                 <p className="mt-1 font-medium text-zinc-900">{vote.title}</p>
                 <p className="text-sm text-zinc-700 whitespace-pre-wrap">{vote.description}</p>
                 <p className="mt-2 text-xs text-gray-500">
@@ -1496,7 +1518,7 @@ export default function OrgPage() {
                 {shareOrgSlug ? (
                 <OrgItemShareButton
                   orgPathSegment={shareOrgSlug}
-                  kind="vote"
+                  kind={isGovernance || vote.kind === "referendum" ? "referendum" : "vote"}
                   resourceId={vote.id}
                   title={vote.title}
                   description={vote.description}
@@ -1590,7 +1612,7 @@ export default function OrgPage() {
             )}
             {!votingOpen && Date.now() > vote.endTime && (
               <div className="mt-3 flex flex-wrap gap-2">
-                {isAdmin && vote.status !== "verification" && (
+                {isAdmin && vote.status !== "verification" && vote.status !== "certified" && (
                   <button
                     type="button"
                     onClick={() => void handleVerificationWindow(vote.id, "open")}
@@ -1599,6 +1621,17 @@ export default function OrgPage() {
                     Open verification
                   </button>
                 )}
+                {isAdmin &&
+                  vote.status === "closed" &&
+                  vote.verificationApprovals?.some((row) => row.action === "close") && (
+                    <button
+                      type="button"
+                      onClick={() => void handleVerificationWindow(vote.id, "lock")}
+                      className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-800 hover:bg-zinc-50"
+                    >
+                      Lock result
+                    </button>
+                  )}
                 {isAdmin && vote.status === "verification" && (
                   <button
                     type="button"
@@ -1625,6 +1658,9 @@ export default function OrgPage() {
                 )}
                 {vote.status === "verification" && (
                   <span className="self-center text-xs text-amber-800">Verification open</span>
+                )}
+                {vote.status === "certified" && (
+                  <span className="self-center text-xs text-zinc-600">Result locked</span>
                 )}
               </div>
             )}
@@ -1802,8 +1838,18 @@ export default function OrgPage() {
             view === "votes" ? "bg-zinc-200 font-medium" : "hover:bg-zinc-100"
           }`}
         >
-          🗳️ <span>Votes</span>
+          🗳️ <span>{isGovernance ? "Referendums" : "Votes"}</span>
         </div>
+        {orgSettings?.citizenInitiativesEnabled && (
+          <div
+            onClick={() => setView("petitions")}
+            className={`flex items-center gap-3 mb-6 p-3 rounded cursor-pointer ${
+              view === "petitions" ? "bg-zinc-200 font-medium" : "hover:bg-zinc-100"
+            }`}
+          >
+            📜 <span>Petitions</span>
+          </div>
+        )}
         <div
           onClick={() => setView("settings")}
           className={`mt-auto flex items-center gap-3 p-3 rounded cursor-pointer ${
@@ -3375,6 +3421,15 @@ export default function OrgPage() {
             searchValue: voteSearch,
             onSearchChange: setVoteSearch,
           })}
+
+        {view === "petitions" && orgKey && (
+          <OrgPetitionsPanel
+            orgId={orgKey}
+            isAdmin={isAdmin}
+            isMember={isViewerMember}
+            signedIn={Boolean(userId)}
+          />
+        )}
 
         {showInviteModal && (
           <div

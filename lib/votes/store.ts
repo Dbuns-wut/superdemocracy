@@ -124,6 +124,9 @@ function rowToVote(row: {
   createdAt?: number
   auditor_visible?: boolean
   auditorVisible?: boolean
+  kind?: string
+  petition_id?: string
+  petitionId?: string
 }): CommunityVote {
   const vote: CommunityVote = {
     id: row.id,
@@ -139,6 +142,13 @@ function rowToVote(row: {
     })(),
     allowVoteChange: Boolean(row.allow_vote_change ?? row.allowVoteChange),
     auditorVisible: (row.auditor_visible ?? row.auditorVisible) !== false,
+    kind: row.kind === "referendum" ? "referendum" : "vote",
+    petitionId:
+      typeof row.petition_id === "string"
+        ? row.petition_id
+        : typeof row.petitionId === "string"
+          ? row.petitionId
+          : undefined,
     status: normalizeStatus(row.status),
     verificationApprovals: Array.isArray(row.verification_approvals ?? row.verificationApprovals)
       ? (row.verification_approvals ?? row.verificationApprovals) as VerificationApproval[]
@@ -204,8 +214,8 @@ async function pgInsertVote(vote: CommunityVote): Promise<void> {
       `INSERT INTO community_votes (
         id, org_id, title, description, options, start_time, end_time,
         eligible_voters, allow_vote_change, status, verification_approvals, created_at,
-        auditor_visible
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        auditor_visible, kind, petition_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [
         vote.id,
         vote.orgId,
@@ -220,6 +230,8 @@ async function pgInsertVote(vote: CommunityVote): Promise<void> {
         JSON.stringify(vote.verificationApprovals),
         vote.createdAt,
         vote.auditorVisible !== false,
+        vote.kind === "referendum" ? "referendum" : "vote",
+        vote.petitionId ?? null,
       ]
     )
   })
@@ -296,6 +308,9 @@ export async function createCommunityVote(input: {
   endTime: number
   eligibleVoters: unknown
   allowVoteChange: boolean
+  /** Governance organizations always create a referendum. A petition launch passes referendum. */
+  kind?: "vote" | "referendum"
+  petitionId?: string
 }): Promise<{ ok: true; vote: CommunityVote } | { ok: false; error: string; status: number }> {
   const orgId = normalizeOrgId(input.orgId)
   if (!orgId) return { ok: false, error: "invalid orgId", status: 400 }
@@ -319,6 +334,7 @@ export async function createCommunityVote(input: {
     : []
 
   const auditorVisible = org.auditorVisibleBallots !== false
+  const kind = org.kind === "governance" || input.kind === "referendum" ? "referendum" : "vote"
 
   const vote: CommunityVote = {
     id: randomUUID(),
@@ -331,6 +347,8 @@ export async function createCommunityVote(input: {
     eligibleVoters,
     allowVoteChange: !!input.allowVoteChange,
     auditorVisible,
+    kind,
+    petitionId: input.petitionId,
     status: "active",
     verificationApprovals: [],
     createdAt: Date.now(),
@@ -612,14 +630,14 @@ export async function listAuditorBallots(input: {
 export async function handleVerificationAction(input: {
   voteId: string
   signer: string
-  action: "open" | "close"
+  action: "open" | "close" | "lock"
 }): Promise<{ ok: true; vote: CommunityVote } | { ok: false; error: string; status: number }> {
   const voteId = input.voteId.trim()
   if (!voteId) return { ok: false, error: "voteId required", status: 400 }
   const signer = normalizeParticipantId(input.signer)
   if (!signer) return { ok: false, error: "Sign in first.", status: 401 }
-  if (input.action !== "open" && input.action !== "close") {
-    return { ok: false, error: "action must be open or close", status: 400 }
+  if (input.action !== "open" && input.action !== "close" && input.action !== "lock") {
+    return { ok: false, error: "action must be open, close, or lock", status: 400 }
   }
 
   const vote = hasDatabase()
@@ -640,14 +658,33 @@ export async function handleVerificationAction(input: {
       return { ok: false, error: "verification already open", status: 409 }
     }
     if (vote.status === "certified") {
-      return { ok: false, error: "vote already certified", status: 409 }
+      return { ok: false, error: "This result is locked.", status: 409 }
     }
     vote.status = "verification"
-  } else {
+  } else if (input.action === "close") {
     if (vote.status !== "verification") {
       return { ok: false, error: "verification is not open", status: 400 }
     }
     vote.status = "closed"
+  } else {
+    if (vote.status === "certified") {
+      return { ok: false, error: "This result is locked.", status: 409 }
+    }
+    if (vote.status === "verification") {
+      return { ok: false, error: "Close verification before locking the result.", status: 400 }
+    }
+    if (now <= vote.endTime || vote.status !== "closed") {
+      return { ok: false, error: "The vote must end before the result can be locked.", status: 400 }
+    }
+    const closedOnce = vote.verificationApprovals.some((row) => row.action === "close")
+    if (!closedOnce) {
+      return {
+        ok: false,
+        error: "Open and close verification before locking the result.",
+        status: 400,
+      }
+    }
+    vote.status = "certified"
   }
 
   vote.verificationApprovals = [

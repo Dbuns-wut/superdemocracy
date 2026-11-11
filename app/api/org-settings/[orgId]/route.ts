@@ -55,6 +55,7 @@ export async function PUT(request: Request, context: Params) {
   const result = await setOrgSettings({
     orgId,
     citizenInitiativesEnabled: Boolean(body.citizenInitiativesEnabled),
+    petitionThreshold: body.petitionThreshold,
     educationBeforeVote: governance ? true : Boolean(body.educationBeforeVote),
     joinRequirements: body.joinRequirements,
     lockEducationOn: governance,

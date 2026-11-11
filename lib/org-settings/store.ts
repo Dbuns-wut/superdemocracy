@@ -3,7 +3,7 @@ import path from "path"
 import { randomUUID } from "crypto"
 import { normalizeOrgId } from "@/lib/org-id"
 import type { JoinRequirementField, OrgSettings } from "./types"
-import { DEFAULT_EDUCATION_BEFORE_VOTE, defaultOrgSettings } from "./types"
+import { DEFAULT_EDUCATION_BEFORE_VOTE, defaultOrgSettings, normalizePetitionThreshold } from "./types"
 
 const DATA_DIR = path.join(process.cwd(), "data")
 const STORE_FILE = path.join(DATA_DIR, "org-settings.json")
@@ -58,6 +58,7 @@ function fromStored(orgId: string, raw: OrgSettings | undefined): OrgSettings {
   return {
     orgId,
     citizenInitiativesEnabled: Boolean(raw.citizenInitiativesEnabled),
+    petitionThreshold: normalizePetitionThreshold(raw.petitionThreshold),
     educationBeforeVote:
       raw.educationBeforeVote === undefined
         ? DEFAULT_EDUCATION_BEFORE_VOTE
@@ -77,6 +78,7 @@ export async function getOrgSettings(orgIdRaw: string): Promise<OrgSettings | nu
 export async function setOrgSettings(input: {
   orgId: string
   citizenInitiativesEnabled: boolean
+  petitionThreshold: unknown
   educationBeforeVote: boolean
   joinRequirements: unknown
   /** Governance orgs cannot disable Education Before Vote. */
@@ -88,6 +90,7 @@ export async function setOrgSettings(input: {
   const settings: OrgSettings = {
     orgId,
     citizenInitiativesEnabled: Boolean(input.citizenInitiativesEnabled),
+    petitionThreshold: normalizePetitionThreshold(input.petitionThreshold),
     educationBeforeVote,
     joinRequirements: normalizeFields(input.joinRequirements),
     updatedAt: Date.now(),

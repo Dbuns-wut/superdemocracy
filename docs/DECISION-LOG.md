@@ -37,8 +37,41 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 # DECISIONS
 
+## 45. Easy signup, checked identity later (D-2026-11-11-02)
+**Date:** 2026-11-11
+
+**Decision:** Creating an account stays a name, an email, and a password. Nothing else is required to sign up. What a person can do later depends on identification that has actually been checked. A typed address, citizenship claim, union card number, or driver-license number is not a check. Those have to be confirmed against the real source: an address confirmation, a citizenship record, the union's own member list, or a driver-license record. That checking is not built. The product must not say a person is verified until a real check has succeeded.
+
+**Why:** The Chief Architect wants signup to be as easy as a social account, and later use limited by the identification a person has actually provided. A fictitious number must not count as an identity.
+
+**Status:** Accepted direction. Signup is email and password. Source checks are not built.
+
+**Source:** Chief Architect, 2026-11-02, recorded 2026-11-11. Extends 36 (D-2026-10-16-01) and 38 (D-2026-10-20-01).
+
+---
+
+## 44. Off-chain petitions and a locked result (D-2026-11-11-01)
+**Date:** 2026-11-11
+
+**Decision:**
+- Petitions run on the server. A member of an organization that has turned them on can start one. Other current members can sign. The administrator can approve or reject it. Approval requires that organization's signature threshold, which defaults to 1. A signer who leaves is dropped from the count, and the signature row is kept. The person can see their own signature. The appointed counter can see who else signed. Other members see the count.
+- Approving a petition lets the administrator launch a referendum. That referendum is an organization vote created from the petition. A governance organization's own questions are also referendums. A community organization's own questions stay votes unless they come from a petition.
+- After voting ends, the administrator opens verification so the appointed counter can review ballots, then closes it. Lock result is the last step. Internally the status is `certified`. On screen it says "Result locked." Verification cannot be opened again.
+- Turning petitions on shows the same warning used for other settings that affect a vote: what changes, the pros and cons, and a confirmation.
+- The blockchain build is not changed. It remains only on `archive/blockchain-relic`. Local development files that still stored wallet addresses were cleared of those leftover records. They were never on `main`.
+
+**Why:** The Chief Architect said to rebuild the blockchain remnants off-chain now, and to keep the old site on the relic branch. "Certified" was the internal name for a result that can no longer be reopened. The product name is a locked result.
+
+**Status:** Accepted. Implemented on the server and in the organization page.
+
+**Source:** Chief Architect, 2026-11-02, recorded 2026-11-11. Follows 43 (D-2026-10-30-01). Carries forward the petition threshold and signer-eligibility rules in D-2026-09-09-08.
+
+---
+
 ## 43. Non-Blockchain Platform and Solo-Maintainable Organization Voting (D-2026-10-30-01)
 **Date:** 2026-10-30
+
+> Followed by 44. Off-chain petitions and a locked result (D-2026-11-11-01) and 45. Easy signup, checked identity later (D-2026-11-11-02). Petitions are no longer deferred. The non-blockchain version is what this branch puts on `main`. The blockchain build stays on `archive/blockchain-relic` and is not modified.
 
 **Decision:**
 - Superdemocracy no longer requires a blockchain. Accounts and governance actions must not require wallets, wallet extensions, cryptocurrency, seed phrases, gas, or a running chain. Governance rules are enforced by the server, not by smart contracts.
@@ -151,7 +184,7 @@ IDs such as `D-2026-09-09-01` are stable references used by the plan documents. 
 
 ## 36. The account follows the person (D-2026-10-16-01)
 
-> The address now follows the account. See 42. One account, one address (D-2026-10-25-01). A government ID check is still not built.
+> The address now follows the account. See 42. One account, one address (D-2026-10-25-01). A government ID check is still not built. Extended by 45. Easy signup, checked identity later (D-2026-11-11-02): signup stays a name, email, and password, and a typed number is not a check.
 
 **Date:** 2026-10-16
 

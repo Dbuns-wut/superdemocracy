@@ -24,14 +24,14 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { action } = body as Record<string, unknown>
   const normalizedAction = String(action ?? "").trim().toLowerCase()
-  if (normalizedAction !== "open" && normalizedAction !== "close") {
-    return NextResponse.json({ error: "action must be open or close" }, { status: 400 })
+  if (normalizedAction !== "open" && normalizedAction !== "close" && normalizedAction !== "lock") {
+    return NextResponse.json({ error: "action must be open, close, or lock" }, { status: 400 })
   }
 
   const result = await handleVerificationAction({
     voteId,
     signer: auth.account.id,
-    action: normalizedAction as "open" | "close",
+    action: normalizedAction as "open" | "close" | "lock",
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
   return NextResponse.json({ vote: result.vote })

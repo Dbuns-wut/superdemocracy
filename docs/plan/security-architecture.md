@@ -45,14 +45,15 @@ Implemented and enforced on the server:
 - Passwords are stored as scrypt hashes. Sessions are opaque tokens in an HttpOnly cookie.
 - The participant id is the account id. The client never supplies it; the server reads it from the session.
 - Ballots are encrypted at rest with AES-256-GCM under a server-only key. The choice is never stored in plaintext.
-- Only members may cast; only the administrator may create votes, edit education, or open/close verification.
+- Only members may cast. Only the administrator may create votes, edit education, open or close verification, or lock a result.
+- When an organization has turned petitions on, only members may start or sign one, only the administrator may approve, reject, or launch it, and only the appointed counter may see who signed.
 - Only the appointed counter may read person-to-choice records, only while verification is open. The administrator is refused.
 - Every counter read and every verification lifecycle change is appended to an audit log.
 - Education Before Vote is enforced at cast time (HTTP 428), not only in the UI.
 - A participant can read their own submission and nobody else's.
 
 Not yet implemented (do not claim them):
-- independent identity verification (government ID or equivalent)
+- independent identity verification against a real source (address confirmation, citizenship, a union's own member list, a driver-license record). A number typed into a form is not that check (decision #45)
 - independent third-party auditing
 - end-to-end verifiability proofs
 - tamper-evident anchoring of the audit log outside the database
@@ -86,7 +87,7 @@ The platform must not expose a public queryable relationship between:
 When auditor visibility is on, the appointed counter may read that relationship. Nobody else may. Removing a name is not sufficient if other metadata can reconstruct identity for the public.
 
 ## Verification at Critical Points
-Verification happens at critical submission points: petition submission (when petitions return) and after voting closes, before final acceptance or certification. Suspected tampering is investigated. Confirmed compromised submissions can be invalidated; affected participants are notified and may resubmit. The original record and its resolution are preserved; nothing is silently overwritten (decision #43).
+Verification happens when a petition is signed and after voting closes, before the administrator locks the result. Suspected tampering is investigated. Confirmed compromised submissions can be invalidated; affected participants are notified and may resubmit. The original record and its resolution are preserved; nothing is silently overwritten (decision #43). A locked result cannot be reopened (decision #44).
 
 The long-term target: voters can obtain meaningful evidence that their ballot was included and counted correctly without gaining a transferable proof that reveals their vote to another person.
 
@@ -96,7 +97,7 @@ Store sealed ballots as the durable record when auditor visibility is on. Keep t
 Do not implement complex ranked-choice or other tally algorithms inside the cast path.
 
 ## Administrator Boundaries
-Admins may control governance workflow where authorized, including opening and closing verification and (later) petition approval.
+Admins may control governance workflow where authorized, including opening and closing verification, locking a result, and approving or rejecting a petition.
 
 Admins must never have a privileged path to:
 - read ballots

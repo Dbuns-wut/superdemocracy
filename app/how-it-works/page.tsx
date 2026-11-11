@@ -35,8 +35,8 @@ export default function HowItWorksPage() {
         <section className="mt-10">
           <h2 className="text-xl font-semibold">Start and sign a petition</h2>
           <p className="mt-3 text-base leading-relaxed text-zinc-600">
-            In a governance organization, a member can write a petition and other members can sign it. When enough
-            people have signed, it can become a referendum the organization votes on.
+            An organization can turn petitions on. A member writes one, and other current members can sign it.
+            When enough people have signed, an administrator can approve it and launch a referendum.
           </p>
         </section>
 
