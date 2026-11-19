@@ -4,8 +4,8 @@ Local source of truth is this GitHub clone. Work on a branch, open a pull reques
 
 ## Before changing anything
 
-1. Read [docs/plan/README.md](docs/plan/README.md) and the [Constitution](docs/plan/constitution.md).
-2. Read [docs/plan/system-specification.md](docs/plan/system-specification.md), and [docs/plan/security-architecture.md](docs/plan/security-architecture.md) for security-sensitive work.
+1. Read [docs/plan/README.md](docs/plan/README.md), then the [Constitution](docs/plan/constitution.md) article and the [decision-log](docs/DECISION-LOG.md) entry that govern this change. Stop once those settle it. Do not load the founding books unless the article and the decision do not settle it.
+2. Read the [system specification](docs/plan/system-specification.md) section for the behavior you are changing. Read [security-architecture.md](docs/plan/security-architecture.md) when the change touches auth, ballots, identity, or secrets.
 3. Check the current repository state before proposing edits.
 
 Code is what exists; it does not outrank the vision documents. The Constitution is the rulebook. A later entry in [docs/DECISION-LOG.md](docs/DECISION-LOG.md) wins over it and the technical codes after a warning (D-2026-10-29-03). If a proposed decision conflicts with one of them, warn the Chief Architect before recording it. The Chief Architect decides whether to override. If the override goes ahead, the entry holds the discussion summary and the reasons, and the clause is footnoted "amended by decision #x". When code and a document disagree, add a log entry — do not silently pick a side, and do not remove a built feature to match a narrower document.

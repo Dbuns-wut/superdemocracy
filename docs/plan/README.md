@@ -4,6 +4,8 @@ The Constitution is the rulebook. Read it before redesigning or adding features.
 
 ## Read order
 
+For a person learning the project, read in this order. An agent does not. An agent reads the decision-log entry and the constitution article that govern the change, then the technical-code section when the change needs it, and stops when the question is settled. A later decision log entry wins over the constitution (see Authority below). Do not continue into the books once those settle it.
+
 1. [constitution.md](constitution.md)
 2. [system-specification.md](system-specification.md)
 3. [security-architecture.md](security-architecture.md)
@@ -11,7 +13,7 @@ The Constitution is the rulebook. Read it before redesigning or adding features.
 5. [../DECISION-LOG.md](../DECISION-LOG.md)
 6. [../../CONTRIBUTING.md](../../CONTRIBUTING.md)
 
-Then the books for deeper context, shortest first: [project primer](../books/superdemocracy-project-primer.md) → [condensed book](../books/superdemocracy-the-experiment-condensed.md) → [full manuscript](../books/superdemocracy-full-manuscript.md).
+Background reading, shortest first: [project primer](../books/superdemocracy-project-primer.md) → [condensed book](../books/superdemocracy-the-experiment-condensed.md) → [full manuscript](../books/superdemocracy-full-manuscript.md). Agents open a book only when the decision log, the constitution, and the technical codes do not settle the question.
 
 Open work lists live on the project whiteboard. The repo pointer is [todo.md](todo.md).
 

@@ -1,0 +1,32 @@
+---
+description: SuperDemocracy builds run on Opus 5.5 High; spend frontier tokens on the build, not the roster
+alwaysApply: true
+---
+
+# SuperDemocracy agent workflow
+
+Quality of the build outranks speed. Frontier tokens go to the implementation and one review. The global pins in `Dbuns-wut/cursor-agents` (Fable on judgment seats, Composer on builder) do not apply in this repo.
+
+## Model
+
+- Implementation, and the single review after it: Claude Opus 5.5 High, slug `claude-opus-5-5-high`. Pass that slug as `model` on the Task. The picker default is Medium; High is the one to use. Do not use Fast (`claude-opus-5-5-fast`, double price). Do not start on xhigh or max.
+- If this chat is already Opus 5.5 High, implement the slice here. If it is any other model, hand the implementation to a builder Task on that slug. Do not build product behavior on Fable, Composer, Sonnet, or Grok.
+- A second try on the same failure may use `claude-opus-5-5-xhigh`. Use `max` only when Dustin asks.
+- Search, logs, and commands stay in the parent, with tools. Do not open a frontier subagent to look something up.
+- `project-setup` and `senior-devops-engineer` keep their global Grok pin.
+
+## One build
+
+A clear task is implemented. Do not run founder-advisor, product-manager, or ui-ux-designer ahead of it. Call architect only when the change crosses a module boundary or the spec is silent on structure. Call senior-security-reviewer only when the slice touches auth, secrets, or row access, and pass the Opus slug. Call qa once, after build, lint, and tests, as its own Task on the Opus slug. Resume that same builder for a follow-up fix.
+
+## Reads
+
+Follow the vision rule. Do not load a file the task does not need, and do not re-read a file already in context.
+
+## Context
+
+Pass a subagent the paths, the acceptance check, and the constraints. Do not paste the constitution or the thread. It returns what changed, which files, validation, and open questions. One Opus implementation at a time. Do not fan out parallel Opus tasks for the same change.
+
+## Quality stays
+
+Build, lint, and the tests that cover the change still run. A visible UI change is still checked in the browser. The security gate still runs inside the build. Fewer frontier passes, same checks.
